@@ -1,0 +1,63 @@
+# ============================================================
+# Wiz検証用の開発環境Kustomize設定
+# ============================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskflow-dev
+
+bases:
+  - ../../base
+
+namePrefix: dev-
+
+commonLabels:
+  environment: dev
+
+# イメージタグの上書き（開発環境用）
+images:
+  - name: BACKEND_IMAGE_PLACEHOLDER
+    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-backend
+    newTag: latest
+  - name: FRONTEND_IMAGE_PLACEHOLDER
+    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-frontend
+    newTag: latest
+
+# レプリカ数の上書き（開発環境は少なめ）
+replicas:
+  - name: backend
+    count: 1
+  - name: frontend
+    count: 1
+
+# パッチ適用（開発環境固有の設定）
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: backend
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backend
+            env:
+            - name: NODE_ENV
+              value: "development"
+            - name: LOG_LEVEL
+              value: "debug"
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: frontend
+    spec:
+      template:
+        spec:
+          containers:
+          - name: frontend
+            env:
+            - name: NODE_ENV
+              value: "development"

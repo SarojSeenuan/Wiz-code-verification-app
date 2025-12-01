@@ -1,0 +1,47 @@
+{
+  "name": "taskflow-frontend",
+  "version": "1.0.0",
+  "description": "TaskFlow Frontend - Wiz検証用サンプル（意図的な脆弱性を含む）",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "13.4.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "axios": "0.21.1",
+    "lodash": "4.17.19",
+    "moment": "2.29.1",
+    "classnames": "2.3.1",
+    "js-cookie": "3.0.1",
+    "prop-types": "15.8.1",
+    "react-query": "3.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.16.3",
+    "@types/react": "18.2.0",
+    "@types/react-dom": "18.2.0",
+    "autoprefixer": "10.4.14",
+    "eslint": "8.39.0",
+    "eslint-config-next": "13.4.1",
+    "postcss": "8.4.23",
+    "tailwindcss": "3.3.2",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "_comment": "このpackage.jsonには意図的に以下の脆弱性が含まれています（Wiz検証用）：",
+  "_vulnerabilities": [
+    "next@13.4.1 - 古いバージョン（S01,S02,S03,S06で検出）",
+    "axios@0.21.1 - CVE-2021-3749（S01,S02,S03,S06,S10で検出）",
+    "lodash@4.17.19 - CVE-2020-8203（S01,S02,S03,S06,S10で検出）",
+    "moment@2.29.1 - 古いバージョン（S01,S02,S03で検出）",
+    "react-query@3.39.0 - 古いバージョン（S01,S02,S03で検出）"
+  ],
+  "_warning": "本番環境では絶対に使用しないでください"
+}

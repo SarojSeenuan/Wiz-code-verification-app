@@ -1,0 +1,137 @@
+# S04: IaCスキャン - Terraform設定検証ワークフロー
+#
+# このワークフローは、Terraformインフラコードのセキュリティスキャンを実施します
+# シナリオS04の検証に使用します
+
+name: S04 - Wiz IaC Scan
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+
+jobs:
+  terraform-iac-scan:
+    name: Terraformスキャン
+    runs-on: ubuntu-latest
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Terraformセットアップ
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraformフォーマットチェック
+        run: |
+          terraform fmt -check -recursive terraform/
+
+      - name: Wiz CLIダウンロード
+        run: |
+          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          sudo mv wizcli /usr/local/bin/
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: Terraform全体スキャン
+        run: |
+          wizcli iac scan \
+            --path ./terraform \
+            --name "terraform-full-${{ github.sha }}" \
+            --tag "environment=all" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "scan-type=iac" \
+            --policy-hits-only
+
+      - name: Terraform Dev環境スキャン
+        run: |
+          wizcli iac scan \
+            --path ./terraform/environments/dev \
+            --name "terraform-dev-${{ github.sha }}" \
+            --tag "environment=dev" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --policy-hits-only
+
+      - name: Terraform Prod環境スキャン
+        run: |
+          wizcli iac scan \
+            --path ./terraform/environments/prod \
+            --name "terraform-prod-${{ github.sha }}" \
+            --tag "environment=prod" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --policy-hits-only
+
+  terraform-validation:
+    name: Terraform検証
+    runs-on: ubuntu-latest
+    needs: terraform-iac-scan
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Terraformセットアップ
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: |
+          cd terraform/environments/${{ matrix.environment }}
+          terraform init -backend=false
+
+      - name: Terraform Validate
+        run: |
+          cd terraform/environments/${{ matrix.environment }}
+          terraform validate
+
+      - name: Terraform Plan（PRの場合のみ）
+        if: github.event_name == 'pull_request'
+        run: |
+          cd terraform/environments/${{ matrix.environment }}
+          terraform plan -no-color
+
+  generate-iac-report:
+    name: IaCレポート生成
+    runs-on: ubuntu-latest
+    needs: [terraform-iac-scan, terraform-validation]
+    if: always()
+    steps:
+      - name: IaCスキャンサマリー出力
+        run: |
+          echo "## S04検証: Terraform IaCスキャン結果" > iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> iac-scan-summary.md
+          echo "- コミット: ${{ github.sha }}" >> iac-scan-summary.md
+          echo "- スキャン対象: terraform/" >> iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "### スキャン対象モジュール" >> iac-scan-summary.md
+          echo "- ECS" >> iac-scan-summary.md
+          echo "- RDS" >> iac-scan-summary.md
+          echo "- ECR" >> iac-scan-summary.md
+          echo "- Networking" >> iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "詳細はWizコンソールで確認してください。" >> iac-scan-summary.md
+
+      - name: レポートをアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: iac-scan-summary-${{ github.sha }}
+          path: iac-scan-summary.md

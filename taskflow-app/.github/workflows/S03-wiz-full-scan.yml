@@ -1,0 +1,159 @@
+# S03: CI/CD統合 - Wiz完全スキャンワークフロー
+#
+# このワークフローは、ソースコード、依存関係、Dockerイメージの完全スキャンを実施します
+# シナリオS03の検証に使用します
+
+name: S03 - Wiz Full Scan
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+  IMAGE_NAME_BACKEND: taskflow-backend
+  IMAGE_NAME_FRONTEND: taskflow-frontend
+
+jobs:
+  # ソースコードスキャン
+  source-code-scan:
+    name: ソースコードスキャン
+    runs-on: ubuntu-latest
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Wiz CLIダウンロード
+        run: |
+          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          sudo mv wizcli /usr/local/bin/
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: バックエンドスキャン
+        run: |
+          wizcli dir scan \
+            --path ./backend \
+            --name "backend-source-${{ github.sha }}" \
+            --tag "component=backend" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "scan-type=source-code" \
+            --policy-hits-only
+
+      - name: フロントエンドスキャン
+        run: |
+          wizcli dir scan \
+            --path ./frontend \
+            --name "frontend-source-${{ github.sha }}" \
+            --tag "component=frontend" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "scan-type=source-code" \
+            --policy-hits-only
+
+  # Dockerイメージビルドとスキャン
+  docker-build-and-scan:
+    name: Dockerイメージビルド＆スキャン
+    runs-on: ubuntu-latest
+    needs: source-code-scan
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWS認証情報設定
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Amazon ECRログイン
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Dockerイメージビルド
+        run: |
+          cd ${{ matrix.component }}
+          docker build -t taskflow-${{ matrix.component }}:${{ github.sha }} .
+
+      - name: Wiz CLIダウンロード
+        run: |
+          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          sudo mv wizcli /usr/local/bin/
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: Dockerイメージスキャン
+        run: |
+          wizcli docker scan \
+            --image taskflow-${{ matrix.component }}:${{ github.sha }} \
+            --tag "component=${{ matrix.component }}" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "build-number=${{ github.run_number }}" \
+            --tag "scan-type=container-image" \
+            --dockerfile ./${{ matrix.component }}/Dockerfile \
+            --policy-hits-only
+
+      - name: イメージタグ付けとECRプッシュ（mainブランチのみ）
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag taskflow-${{ matrix.component }}:${{ github.sha }} \
+            ${{ env.REGISTRY }}/taskflow-${{ matrix.component }}:${{ github.sha }}
+          docker tag taskflow-${{ matrix.component }}:${{ github.sha }} \
+            ${{ env.REGISTRY }}/taskflow-${{ matrix.component }}:latest
+
+          docker push ${{ env.REGISTRY }}/taskflow-${{ matrix.component }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/taskflow-${{ matrix.component }}:latest
+
+  # 脆弱性レポート生成
+  generate-report:
+    name: 脆弱性レポート生成
+    runs-on: ubuntu-latest
+    needs: [source-code-scan, docker-build-and-scan]
+    if: always()
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Wiz CLIダウンロード
+        run: |
+          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          sudo mv wizcli /usr/local/bin/
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: スキャンサマリー出力
+        run: |
+          echo "## S03検証: Wiz完全スキャン結果" > scan-summary.md
+          echo "" >> scan-summary.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> scan-summary.md
+          echo "- コミット: ${{ github.sha }}" >> scan-summary.md
+          echo "- ビルド番号: ${{ github.run_number }}" >> scan-summary.md
+          echo "" >> scan-summary.md
+          echo "詳細はWizコンソールで確認してください。" >> scan-summary.md
+
+      - name: レポートをアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiz-scan-summary-${{ github.sha }}
+          path: scan-summary.md

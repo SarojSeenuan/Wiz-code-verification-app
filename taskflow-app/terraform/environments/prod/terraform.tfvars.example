@@ -1,0 +1,21 @@
+# Prod環境のTerraform変数サンプル
+# このファイルをterraform.tfvarsにコピーして使用してください
+
+aws_region = "us-east-1"
+
+vpc_cidr           = "10.1.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+public_subnet_cidrs  = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
+private_subnet_cidrs = ["10.1.11.0/24", "10.1.12.0/24", "10.1.13.0/24"]
+
+enable_nat_gateway   = true
+enable_vpc_endpoints = true  # 本番環境ではVPCエンドポイント有効化
+
+database_name     = "taskflow_prod"
+database_username = "taskflow_admin"
+database_password = "CHANGE_THIS_PASSWORD"  # 必ずSecretsManagerまたは環境変数を使用
+
+database_password_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/taskflow/db-password-XXXXXX"
+
+backend_image_tag  = "v1.0.0"  # 本番環境では特定のバージョンタグを使用
+frontend_image_tag = "v1.0.0"

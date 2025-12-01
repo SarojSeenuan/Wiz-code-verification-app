@@ -1,0 +1,79 @@
+# ============================================================
+# Wiz検証用の本番環境Kustomize設定
+# ============================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskflow-prod
+
+bases:
+  - ../../base
+
+namePrefix: prod-
+
+commonLabels:
+  environment: prod
+
+# イメージタグの上書き（本番環境用）
+images:
+  - name: BACKEND_IMAGE_PLACEHOLDER
+    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/prod-taskflow-backend
+    newTag: v1.0.0
+  - name: FRONTEND_IMAGE_PLACEHOLDER
+    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/prod-taskflow-frontend
+    newTag: v1.0.0
+
+# レプリカ数の上書き（本番環境は多め）
+replicas:
+  - name: backend
+    count: 3
+  - name: frontend
+    count: 3
+
+# パッチ適用（本番環境固有の設定）
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: backend
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backend
+            env:
+            - name: NODE_ENV
+              value: "production"
+            - name: LOG_LEVEL
+              value: "info"
+            # 本番環境でもリソース制限なし（脆弱性） - S04で検出
+            # resources:
+            #   requests:
+            #     memory: "256Mi"
+            #     cpu: "200m"
+            #   limits:
+            #     memory: "512Mi"
+            #     cpu: "500m"
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: frontend
+    spec:
+      template:
+        spec:
+          containers:
+          - name: frontend
+            env:
+            - name: NODE_ENV
+              value: "production"
+            # 本番環境でもリソース制限なし（脆弱性） - S04で検出
+            # resources:
+            #   requests:
+            #     memory: "128Mi"
+            #     cpu: "100m"
+            #   limits:
+            #     memory: "256Mi"
+            #     cpu: "200m"

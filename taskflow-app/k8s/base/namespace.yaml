@@ -1,0 +1,10 @@
+# Namespace定義
+# TaskFlowアプリケーション用のKubernetes Namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskflow
+  labels:
+    app: taskflow
+    managed-by: kustomize

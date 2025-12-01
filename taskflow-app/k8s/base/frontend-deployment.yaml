@@ -1,0 +1,97 @@
+# ============================================================
+# Wiz検証用の意図的な脆弱性を含むフロントエンドDeployment
+# ============================================================
+# 本ファイルには以下の意図的な設定ミスが含まれています：
+# 1. コンテナがroot権限で実行される可能性（S04で検出）
+# 2. リソース制限が設定されていない（S04で検出）
+# 3. securityContextが設定されていない（S04で検出）
+# 4. 環境変数にシークレットが含まれる可能性（S05で検出）
+#
+# 本番環境では絶対に使用しないでください
+# ============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: taskflow
+    component: frontend
+    environment: ENVIRONMENT_PLACEHOLDER
+    managed-by: kustomize
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: taskflow
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: taskflow
+        component: frontend
+        environment: ENVIRONMENT_PLACEHOLDER
+    spec:
+      # securityContextが設定されていない（脆弱性） - S04で検出
+      containers:
+      - name: frontend
+        image: FRONTEND_IMAGE_PLACEHOLDER
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+
+        # 環境変数にシークレットを含む可能性（脆弱性） - S05で検出
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: API_URL
+          value: "http://backend:3000"
+        # ハードコードされたAPIキー（脆弱性） - S05で検出
+        - name: NEXT_PUBLIC_API_KEY
+          value: "pk_live_1234567890abcdef"
+        # ハードコードされたシークレット（脆弱性） - S05で検出
+        - name: NEXTAUTH_SECRET
+          value: "this-is-a-hardcoded-nextauth-secret"
+        - name: SECRET_COOKIE_PASSWORD
+          value: "complex_password_at_least_32_characters_long"
+
+        # リソース制限が設定されていない（脆弱性） - S04で検出
+        # resources:
+        #   requests:
+        #     memory: "128Mi"
+        #     cpu: "100m"
+        #   limits:
+        #     memory: "256Mi"
+        #     cpu: "200m"
+
+        # Liveness Probe
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Readiness Probe
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        # securityContextが設定されていない（脆弱性） - S04で検出
+        # コンテナがroot権限で実行される可能性
+        # securityContext:
+        #   allowPrivilegeEscalation: false
+        #   runAsNonRoot: true
+        #   runAsUser: 1000
+        #   capabilities:
+        #     drop:
+        #     - ALL
+        #   readOnlyRootFilesystem: false
