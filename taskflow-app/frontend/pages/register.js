@@ -93,134 +93,129 @@ export default function Register() {
         <meta name="description" content="TaskFlow 新規ユーザー登録" />
       </Head>
 
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h1 className="text-center text-3xl font-extrabold text-gray-900">TaskFlow</h1>
-          <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
-            新規アカウント作成
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            すでにアカウントをお持ちですか？{' '}
-            <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
-              ログイン
-            </Link>
-          </p>
-        </div>
+      <div className="min-h-screen flex flex-col justify-center">
+        <div className="pixel-container max-w-2xl">
+          {/* タイトルセクション */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl mb-4 pixel-text-shadow">
+              ◆ TASKFLOW ◆
+            </h1>
+            <h2 className="text-xl mb-4">
+              ▶ REGISTER
+            </h2>
+            <p className="text-sm text-[var(--pixel-text-secondary)]">
+              すでにアカウントをお持ちですか？{' '}
+              <Link href="/login" className="text-[var(--pixel-blue)] hover:text-[var(--pixel-lightest)]">
+                ログイン
+              </Link>
+            </p>
+          </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
+          {/* メインカード */}
+          <div className="pixel-card">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* エラーメッセージ */}
               {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">
-                        {/* XSS脆弱性: エラーメッセージをサニタイズせずに表示 - S01,S02で検出 */}
-                        <span dangerouslySetInnerHTML={{ __html: error }} />
-                      </h3>
-                    </div>
-                  </div>
+                <div className="pixel-alert pixel-alert-danger">
+                  {/* XSS脆弱性: エラーメッセージをサニタイズせずに表示 - S01,S02で検出 */}
+                  <span dangerouslySetInnerHTML={{ __html: error }} />
                 </div>
               )}
 
               {/* ユーザー名 */}
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  ユーザー名 <span className="text-red-500">*</span>
+                <label htmlFor="username" className="block text-xs mb-2">
+                  USERNAME <span className="text-[var(--pixel-error)]">*</span>
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="ユーザー名を入力"
-                  />
-                </div>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="pixel-input"
+                  placeholder="Enter username..."
+                />
               </div>
 
               {/* メールアドレス */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  メールアドレス <span className="text-red-500">*</span>
+                <label htmlFor="email" className="block text-xs mb-2">
+                  EMAIL <span className="text-[var(--pixel-error)]">*</span>
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="email@example.com"
-                  />
-                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="pixel-input"
+                  placeholder="email@example.com"
+                />
               </div>
 
               {/* パスワード */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  パスワード <span className="text-red-500">*</span>
+                <label htmlFor="password" className="block text-xs mb-2">
+                  PASSWORD <span className="text-[var(--pixel-error)]">*</span>
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="パスワードを入力"
-                  />
-                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="pixel-input"
+                  placeholder="Enter password..."
+                />
                 {/* 弱いパスワードポリシーの警告（脆弱性） - S01,S02で検出 */}
-                <p className="mt-1 text-xs text-gray-500">
-                  4文字以上のパスワードを設定してください
+                <p className="mt-2 text-xs text-[var(--pixel-text-secondary)]">
+                  ⚠ 4文字以上のパスワードを設定してください
                 </p>
               </div>
 
               {/* パスワード確認 */}
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  パスワード確認 <span className="text-red-500">*</span>
+                <label htmlFor="confirmPassword" className="block text-xs mb-2">
+                  CONFIRM PASSWORD <span className="text-[var(--pixel-error)]">*</span>
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    required
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="パスワードを再入力"
-                  />
-                </div>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="pixel-input"
+                  placeholder="Re-enter password..."
+                />
               </div>
 
               {/* 送信ボタン */}
-              <div>
+              <div className="flex gap-4">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="pixel-btn pixel-btn-success flex-1"
                 >
-                  {loading ? '登録中...' : 'アカウント作成'}
+                  {loading ? 'CREATING...' : '▶ CREATE ACCOUNT'}
                 </button>
+                <Link href="/" className="flex-1">
+                  <button type="button" className="pixel-btn w-full">
+                    ◀ BACK
+                  </button>
+                </Link>
               </div>
             </form>
 
             {/* デバッグ情報（脆弱性） - S01,S02,S05で検出 */}
             {process.env.NODE_ENV !== 'production' && (
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="text-xs font-bold text-yellow-800">デバッグ情報</p>
-                <pre className="mt-2 text-xs text-yellow-700 overflow-auto">
+              <div className="mt-6 pixel-alert pixel-alert-warning">
+                <p className="text-xs font-bold mb-2">◆ DEBUG INFO</p>
+                <pre className="text-xs overflow-auto">
                   {JSON.stringify({
                     username: formData.username,
                     email: formData.email,

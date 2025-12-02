@@ -1,0 +1,36 @@
+{
+  "name": "taskflow-backend",
+  "version": "1.0.0",
+  "description": "TaskFlow Backend API - Wiz検証用サンプルアプリケーション (意図的な脆弱性を含む)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": ["wiz", "security", "demo", "vulnerable"],
+  "author": "TIS Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "cors": "^2.8.5",
+    "body-parser": "^1.19.0",
+    "jsonwebtoken": "^8.5.1",
+    "bcrypt": "^5.0.1",
+    "uuid": "^8.3.2",
+    "dotenv": "^10.0.0",
+    "pg": "^8.7.1",
+    "lodash": "^4.17.20",
+    "moment": "^2.29.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "warnings": [
+    "⚠️ このアプリケーションは検証目的専用です",
+    "⚠️ 意図的なセキュリティ脆弱性が含まれています",
+    "⚠️ 本番環境では絶対に使用しないでください"
+  ]
+}

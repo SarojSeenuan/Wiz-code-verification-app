@@ -112,37 +112,63 @@ npm run dev
 
 ### Docker Compose での起動（推奨）
 
-最も簡単な方法は、プロジェクトルートの Docker Compose を使用することです：
+最も簡単な方法は、Docker Compose を使用して全てのサービスを一度に起動することです：
 
 ```bash
-# プロジェクトルートに移動
-cd ..
-
-# PostgreSQLデータベースを起動
+# 全サービス（PostgreSQL、Backend、Frontend、Redis）を起動
 docker-compose up -d
 
-# データベース接続確認
+# サービスの状態を確認
 docker-compose ps
 
-# ログ確認
-docker-compose logs -f postgres
+# ログを確認
+docker-compose logs -f
 
-# pgAdmin（データベース管理UI）も起動する場合
-docker-compose --profile admin up -d
+# 特定のサービスのログを確認
+docker-compose logs -f backend
+docker-compose logs -f frontend
 
 # 停止
 docker-compose down
+
+# ボリュームも含めて完全削除
+docker-compose down -v
+```
+
+**⚠️ Code-to-Cloudトレーサビリティのためのビルド引数**
+
+環境変数を設定してビルドすることで、Wizがコンテナイメージをソースコードまで追跡できます：
+
+```bash
+# Git情報を含めてビルド
+export GIT_COMMIT=$(git rev-parse HEAD)
+export GIT_BRANCH=$(git branch --show-current)
+export BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+export BUILD_ID=local-$(date +%s)
+export GITHUB_REPOSITORY=$(git remote get-url origin)
+
+docker-compose up -d --build
 ```
 
 **接続情報**:
 
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:3001
 - **PostgreSQL**: localhost:5432
-- **Database**: taskflow
-- **User**: postgres
-- **Password**: postgres
-- **pgAdmin** (オプション): http://localhost:5050
-  - Email: admin@taskflow.local
-  - Password: admin
+  - Database: taskflow
+  - User: postgres
+  - Password: postgres123
+- **Redis**: localhost:6379（パスワードなし）
+
+**ヘルスチェック**:
+
+```bash
+# バックエンドAPI
+curl http://localhost:3001/health
+
+# フロントエンド
+curl http://localhost:3000
+```
 
 ### Docker イメージでの起動
 
@@ -223,47 +249,177 @@ cd scripts/verification
 
 ## 🏭 AWS 環境へのデプロイ
 
+詳細な手順は [MANUAL_SETUP_GUIDE.md](../../docs/guides/MANUAL_SETUP_GUIDE.md) を参照してください。
+
+### 前提条件
+
+```bash
+# AWS認証情報の設定
+aws configure
+
+# Terraform, AWS CLI, kubectl, Wiz CLIがインストールされていることを確認
+terraform --version  # v1.6.x以上
+aws --version        # AWS CLI v2.x
+kubectl version      # v1.28.x以上
+wizcli version       # 最新版
+```
+
 ### 1. Terraform によるインフラ構築
 
 ```bash
 cd terraform/environments/dev
 
+# 変数ファイルの作成
+cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars を編集して必要な値を設定
+
 # 初期化
 terraform init
 
-# プラン確認
+# プラン確認（意図的な脆弱性を確認）
 terraform plan
+
+# S04検証: Terraformコードのスキャン
+wizcli iac scan --path . --policy-hits-only
 
 # 適用
 terraform apply
+
+# 出力値を確認
+terraform output
+export ECR_REGISTRY=$(terraform output -raw ecr_registry)
+export RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
 ```
 
-### 2. Docker イメージのビルドとプッシュ
+**作成されるリソース**:
+- VPC、サブネット、セキュリティグループ
+- Amazon ECR リポジトリ（backend/frontend）
+- Amazon RDS PostgreSQL
+- Amazon ECS クラスター、タスク定義、サービス
+- Application Load Balancer
+
+### 2. Docker イメージのビルドとプッシュ（Wizスキャン付き）
 
 ```bash
 # ECRログイン
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin $ECR_REGISTRY
 
-# バックエンドイメージのビルドとプッシュ
-docker build -t taskflow-backend:latest ./backend
-docker tag taskflow-backend:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-backend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-backend:latest
+# バックエンドイメージのビルド（Code-to-Cloudメタデータ付き）
+cd ../../backend
+export IMAGE_TAG=$(git rev-parse --short HEAD)
+docker build \
+  --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+  --build-arg GIT_BRANCH=$(git branch --show-current) \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  --build-arg BUILD_ID=manual-$(date +%s) \
+  --build-arg GITHUB_REPOSITORY=$(git remote get-url origin) \
+  -t $ECR_REGISTRY/taskflow-backend:$IMAGE_TAG \
+  -t $ECR_REGISTRY/taskflow-backend:latest \
+  .
 
-# フロントエンドイメージのビルドとプッシュ
-docker build -t taskflow-frontend:latest ./frontend
-docker tag taskflow-frontend:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-frontend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/dev-taskflow-frontend:latest
+# S07検証: Wizスキャンの実行
+wizcli docker scan \
+  --image $ECR_REGISTRY/taskflow-backend:$IMAGE_TAG \
+  --policy "Default vulnerabilities policy" \
+  --policy-hits-only
+
+# Code-to-Cloudメタデータのタグ付け
+wizcli docker tag \
+  --image $ECR_REGISTRY/taskflow-backend:$IMAGE_TAG \
+  --source-repo "$(git remote get-url origin)" \
+  --source-branch "$(git branch --show-current)" \
+  --source-commit "$(git rev-parse HEAD)" \
+  --ci-build-id "manual-$(date +%s)"
+
+# ECRにプッシュ
+docker push $ECR_REGISTRY/taskflow-backend:$IMAGE_TAG
+docker push $ECR_REGISTRY/taskflow-backend:latest
+
+# フロントエンドも同様に
+cd ../frontend
+docker build \
+  --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+  --build-arg GIT_BRANCH=$(git branch --show-current) \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  --build-arg BUILD_ID=manual-$(date +%s) \
+  --build-arg GITHUB_REPOSITORY=$(git remote get-url origin) \
+  -t $ECR_REGISTRY/taskflow-frontend:$IMAGE_TAG \
+  -t $ECR_REGISTRY/taskflow-frontend:latest \
+  .
+
+wizcli docker scan --image $ECR_REGISTRY/taskflow-frontend:$IMAGE_TAG --policy-hits-only
+wizcli docker tag --image $ECR_REGISTRY/taskflow-frontend:$IMAGE_TAG \
+  --source-repo "$(git remote get-url origin)" \
+  --source-branch "$(git branch --show-current)" \
+  --source-commit "$(git rev-parse HEAD)"
+
+docker push $ECR_REGISTRY/taskflow-frontend:$IMAGE_TAG
+docker push $ECR_REGISTRY/taskflow-frontend:latest
 ```
 
-### 3. ECS/EKS へのデプロイ
-
-ECS の場合、Terraform が自動的にタスク定義を作成します。
-
-EKS の場合：
+### 3. ECS へのデプロイ
 
 ```bash
+# Terraformで自動的にECSタスク定義とサービスが作成されます
+# イメージを更新した場合は、ECSサービスを強制的に再デプロイ
+aws ecs update-service \
+  --cluster dev-taskflow-cluster \
+  --service dev-taskflow-backend-service \
+  --force-new-deployment
+
+aws ecs update-service \
+  --cluster dev-taskflow-cluster \
+  --service dev-taskflow-frontend-service \
+  --force-new-deployment
+
+# デプロイ状況の確認
+aws ecs describe-services \
+  --cluster dev-taskflow-cluster \
+  --services dev-taskflow-backend-service dev-taskflow-frontend-service
+
+# ALBのDNS名を取得
+terraform output alb_dns_name
+```
+
+### 4. EKS へのデプロイ（オプション）
+
+```bash
+# EKSクラスターへの接続
+aws eks update-kubeconfig --name dev-taskflow-cluster --region us-east-1
+
+# Namespaceの確認
+kubectl get namespaces
+
 # Kustomizeでデプロイ
 kubectl apply -k k8s/overlays/dev
+
+# デプロイ状況の確認
+kubectl get pods -n taskflow
+kubectl get services -n taskflow
+kubectl get ingress -n taskflow
+
+# ログ確認
+kubectl logs -f deployment/backend -n taskflow
+kubectl logs -f deployment/frontend -n taskflow
+```
+
+### 5. S08-S09検証: ランタイムコンテキストとドリフト検出
+
+```bash
+# S08: Wizコンソールでランタイムコンテキストを確認
+# 1. Wiz Console → Inventory → Workloads
+# 2. ECS TasksまたはKubernetes Podsを検索
+# 3. "In Use"フィルターを適用して実行中の脆弱性を確認
+
+# S09: 手動でAWSリソースを変更してドリフトを検出
+# 1. AWS Consoleでセキュリティグループのルールを追加
+# 2. Terraformでドリフトを確認
+cd terraform/environments/dev
+terraform plan  # 差分が表示される
+
+# 3. Wizコンソールでドリフトを確認
+# Wiz Console → Cloud Configuration → Drift Detection
 ```
 
 ## 🔍 意図的な脆弱性の一覧

@@ -1,0 +1,114 @@
+# ============================================================
+# TaskFlow - Git Ignore設定
+# ============================================================
+
+# 環境変数ファイル
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.env
+
+# 依存関係
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ビルド成果物
+dist/
+build/
+.next/
+out/
+.nuxt/
+.cache/
+
+# ログファイル
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS生成ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEとエディタ
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+terraform.tfplan
+.terraform.lock.hcl
+
+# AWS
+.aws/
+credentials
+config
+
+# Docker
+*.tar
+*.tar.gz
+
+# 一時ファイル
+tmp/
+temp/
+*.tmp
+
+# テスト関連
+coverage/
+.nyc_output/
+*.lcov
+
+# エビデンスファイル（サイズが大きい場合は別リポジトリで管理）
+# evidence/
+# comparison/
+
+# セキュリティスキャン結果
+scan-results/
+*.scan.json
+wiz-results/
+
+# データベース
+*.db
+*.sqlite
+*.sqlite3
+
+# バックアップファイル
+*.bak
+*.backup
+*.old
+
+# ============================================================
+# 【重要】Wiz検証用ファイル
+# ============================================================
+# 以下は検証目的で意図的に含めるファイル（通常はignoreすべき）
+# - ハードコードされたシークレットを含むファイル
+# - 古い依存関係を含むpackage.json
+# ============================================================

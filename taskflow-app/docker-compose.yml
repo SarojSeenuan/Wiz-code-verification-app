@@ -1,0 +1,164 @@
+# ============================================================
+# Wiz検証用のDocker Compose設定
+# ============================================================
+# ⚠️ WARNING: このファイルは検証目的専用です
+# ⚠️ 意図的なセキュリティ脆弱性が含まれています
+# ⚠️ 本番環境では絶対に使用しないでください
+# ============================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQLデータベース
+  postgres:
+    image: postgres:13.4  # 【脆弱性】古いバージョン
+    container_name: taskflow-postgres
+    environment:
+      # 【脆弱性】ハードコードされたデータベース認証情報
+      POSTGRES_DB: taskflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      # 【脆弱性】デバッグモードを有効化
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      # 【脆弱性】ホストに直接ポートを公開
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/setup/init-database.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - taskflow-network
+    # 【脆弱性】ヘルスチェックなし
+    restart: unless-stopped
+
+  # バックエンドAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        # Code-to-Cloudトレーサビリティ用のメタデータ
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        BUILD_ID: ${BUILD_ID:-local}
+        GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:-local/taskflow}
+    container_name: taskflow-backend
+    environment:
+      # 【脆弱性】環境変数に認証情報を直接記載
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: taskflow
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres123
+      JWT_SECRET: hardcoded-jwt-secret-key
+      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
+      AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      AWS_REGION: us-east-1
+      # 【脆弱性】デバッグモードを有効化
+      DEBUG: "*"
+      LOG_LEVEL: debug
+    ports:
+      - "3001:3001"
+      # 【脆弱性】不要なポートを開放
+      - "9229:9229"  # Node.js debug port
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - taskflow-network
+    # 【脆弱性】特権モードで実行
+    # privileged: true  # コメントアウトしているが、検証時に有効化可能
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # フロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        BUILD_ID: ${BUILD_ID:-local}
+        GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:-local/taskflow}
+    container_name: taskflow-frontend
+    environment:
+      # 【脆弱性】APIキーをハードコード
+      NEXT_PUBLIC_API_URL: http://backend:3001
+      NEXT_PUBLIC_API_KEY: pk_live_1234567890abcdef
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - taskflow-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  # Redis（オプション - セッション管理用）
+  redis:
+    image: redis:6.2.5-alpine  # 【脆弱性】古いバージョン
+    container_name: taskflow-redis
+    ports:
+      # 【脆弱性】認証なしでRedisを公開
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - taskflow-network
+    # 【脆弱性】パスワード保護なし
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  taskflow-network:
+    driver: bridge
+    # 【脆弱性】ネットワーク分離なし
+
+# ============================================================
+# Wiz Code検証ポイント:
+# ============================================================
+# S03: CI/CDパイプラインでこのdocker-compose.ymlをスキャン
+# S05: ハードコードされたシークレットを検出
+# S06: SBOM生成（全てのコンテナイメージの依存関係）
+# S07: コンテナトレーサビリティ（ビルド引数でGit情報を追跡）
+# S08: ランタイム優先順位付け（実行中のコンテナの脆弱性）
+# S09: IaC Drift検出（手動で設定変更した場合）
+# ============================================================
+
+# 使用方法:
+# ローカル開発: docker-compose up -d
+# ログ確認: docker-compose logs -f
+# 停止: docker-compose down
+# 完全削除: docker-compose down -v
+#
+# Wizスキャン:
+# wizcli docker scan --image taskflow-backend:latest
+# wizcli docker scan --image taskflow-frontend:latest

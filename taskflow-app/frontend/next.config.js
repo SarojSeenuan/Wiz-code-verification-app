@@ -14,7 +14,7 @@ const nextConfig = {
 
   // 環境変数をクライアントに露出（脆弱性） - S05で検出
   env: {
-    API_URL: process.env.API_URL || 'http://localhost:3000',
+    API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
     API_KEY: process.env.NEXT_PUBLIC_API_KEY || 'pk_live_1234567890abcdef',
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'this-is-a-hardcoded-nextauth-secret',
     SECRET_COOKIE_PASSWORD: process.env.SECRET_COOKIE_PASSWORD || 'complex_password_at_least_32_characters_long'

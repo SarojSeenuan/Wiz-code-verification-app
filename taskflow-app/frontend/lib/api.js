@@ -12,7 +12,7 @@
 import axios from 'axios';
 
 // ハードコードされたAPI設定（S05で検出される脆弱性）
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const API_KEY = 'pk_live_1234567890abcdef1234567890abcdef'; // ハードコードされたAPIキー
 
 // Axiosインスタンス作成
@@ -181,13 +181,23 @@ export const tasks = {
   },
 
   // タスクコメント追加（XSS脆弱性）
-  addComment: async (id, content) => {
+  addComment: async (id, text) => {
     // XSS脆弱性: コメントをサニタイズせずに送信 - S01,S02で検出
-    const user = auth.getCurrentUser();
     const response = await api.post(`/api/tasks/${id}/comments`, {
-      user_id: user?.id,
-      content
+      text
     });
+    return response.data;
+  },
+
+  // タスクコメント削除
+  deleteComment: async (taskId, commentId) => {
+    const response = await api.delete(`/api/tasks/${taskId}/comments/${commentId}`);
+    return response.data;
+  },
+
+  // タスク統計情報取得
+  getStats: async () => {
+    const response = await api.get('/api/tasks/stats');
     return response.data;
   }
 };
@@ -197,39 +207,40 @@ export const tasks = {
 // ============================================================
 
 export const users = {
-  // ユーザー一覧取得
-  getAll: async (params = {}) => {
-    const response = await api.get('/api/users', { params });
+  // プロフィール取得
+  getProfile: async () => {
+    const response = await api.get('/api/users/profile');
     return response.data;
   },
 
-  // ユーザー詳細取得
-  getById: async (id) => {
-    const response = await api.get(`/api/users/${id}`);
+  // プロフィール更新
+  updateProfile: async (profileData) => {
+    const response = await api.put('/api/users/profile', profileData);
     return response.data;
   },
 
-  // ユーザー作成
-  create: async (userData) => {
-    const response = await api.post('/api/users', userData);
+  // パスワード変更
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.put('/api/users/password', {
+      currentPassword,
+      newPassword
+    });
     return response.data;
   },
 
-  // ユーザー更新
-  update: async (id, userData) => {
-    const response = await api.put(`/api/users/${id}`, userData);
+  // アカウント削除
+  deleteAccount: async (password) => {
+    const response = await api.delete('/api/users/account', {
+      data: { password }
+    });
     return response.data;
   },
 
-  // ユーザー削除
-  delete: async (id) => {
-    const response = await api.delete(`/api/users/${id}`);
-    return response.data;
-  },
-
-  // ユーザーのタスク取得
-  getTasks: async (id, params = {}) => {
-    const response = await api.get(`/api/users/${id}/tasks`, { params });
+  // プロフィール画像アップロード
+  uploadProfileImage: async (imageData) => {
+    const response = await api.post('/api/users/profile/image', {
+      imageData
+    });
     return response.data;
   }
 };
