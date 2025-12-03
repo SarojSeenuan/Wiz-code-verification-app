@@ -351,6 +351,10 @@ AWS Secret Access Key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 Default region name: us-east-1
 Default output format: json
 
+TISの認証プロキシ設定
+set HTTPS_PROXY=http://tiexxxxx:パスワード（統合ID）@tkyproxy-auth.intra.tis.co.jp:8080
+※powershellの場合
+$Env:HTTPS_PROXY="http://tiexxxxx:パスワード（統合ID）@tkyproxy-auth.intra.tis.co.jp:8080"
 # 認証テスト
 aws sts get-caller-identity
 ```
