@@ -153,7 +153,7 @@ terraform --version # v1.6.x 以上
 # https://github.com/your-org/WizCodeVerification
 
 # ローカルにクローン
-git clone https://github.com/YOUR_USERNAME/WizCodeVerification.git
+git clone https://github.com/SarojSeenuan/Wiz-code-verification-app.git
 cd WizCodeVerification
 ```
 
