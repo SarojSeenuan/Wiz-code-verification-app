@@ -18,6 +18,11 @@ on:
     paths:
       - 'terraform/**'
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 jobs:
   terraform-iac-scan:
     name: Terraformスキャン
@@ -75,6 +80,47 @@ jobs:
             --tag "branch=${{ github.ref_name }}" \
             --tag "commit=${{ github.sha }}" \
             --policy-hits-only
+
+      - name: Terraform Vulnerable環境スキャン（検証用）
+        id: vulnerable_scan
+        run: |
+          wizcli iac scan \
+            --path ./terraform/environments/vulnerable \
+            --name "terraform-vulnerable-${{ github.sha }}" \
+            --tag "environment=vulnerable" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "purpose=security-testing" \
+            --output vulnerable-iac-results.sarif,sarif \
+            --output vulnerable-iac-results.json,json \
+            --policy-hits-only
+        continue-on-error: true
+
+      - name: SARIF結果をGitHub Securityにアップロード
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: vulnerable-iac-results.sarif
+          category: wiz-iac-vulnerable
+
+      - name: スキャン結果をArtifactとして保存
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerable-iac-scan-results-${{ github.sha }}
+          path: |
+            vulnerable-iac-results.sarif
+            vulnerable-iac-results.json
+
+      - name: スキャン結果の確認
+        if: steps.vulnerable_scan.outcome == 'failure'
+        run: |
+          echo "❌ Vulnerable環境のスキャンでポリシー違反を検出しました"
+          echo "📊 検出サマリー:"
+          cat vulnerable-iac-results.json | jq '.summary' || echo "No summary available"
+          echo ""
+          echo "🔴 これは期待される動作です（検証用の脆弱な設定）"
+          echo "詳細はGitHub SecurityタブとWizコンソールで確認してください"
 
   terraform-validation:
     name: Terraform検証

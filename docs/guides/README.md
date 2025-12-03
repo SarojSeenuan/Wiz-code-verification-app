@@ -40,10 +40,11 @@
 **全Phase実施する場合（AWS必要）**
 1. ✅ [MANUAL_SETUP_GUIDE.md](./MANUAL_SETUP_GUIDE.md) - 完全セットアップ
 2. ✅ [ENVIRONMENT_VARIABLES_GUIDE.md](./ENVIRONMENT_VARIABLES_GUIDE.md) - Phase 2環境変数設定
-3. ✅ [BRANCH_MANAGEMENT_GUIDE.md](./BRANCH_MANAGEMENT_GUIDE.md) - ブランチ戦略
-4. ✅ [Phase 1シナリオ](../phase1-shift-left/) - S01～S05実施
-5. ✅ [Phase 2シナリオ](../phase2-code-to-cloud/) - S06～S09実施
-6. ✅ [Phase 3シナリオ](../phase3-integration/) - S10～S11実施
+3. ✅ [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md) - AWS環境デプロイ（ECS Fargate, ECR, RDS）
+4. ✅ [BRANCH_MANAGEMENT_GUIDE.md](./BRANCH_MANAGEMENT_GUIDE.md) - ブランチ戦略
+5. ✅ [Phase 1シナリオ](../phase1-shift-left/) - S01～S05実施
+6. ✅ [Phase 2シナリオ](../phase2-code-to-cloud/) - S06～S09実施
+7. ✅ [Phase 3シナリオ](../phase3-integration/) - S10～S11実施
 
 ### 「Windows環境で作業する」場合
 
@@ -76,6 +77,7 @@
 | **[MANUAL_SETUP_GUIDE.md](./MANUAL_SETUP_GUIDE.md)** | 全員（必須） | 環境セットアップの完全ガイド | 1-2時間 |
 | **[WINDOWS_SETUP_GUIDE.md](./WINDOWS_SETUP_GUIDE.md)** | Windows利用者 | Windows環境専用セットアップ | 30分 |
 | **[ENVIRONMENT_VARIABLES_GUIDE.md](./ENVIRONMENT_VARIABLES_GUIDE.md)** | 全員（必須） | 環境変数の設定・管理 | 15分 |
+| **[AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)** | Phase 2-3実施者 | AWS環境デプロイ（ECS Fargate, ECR, RDS） | 2-3時間 |
 
 #### MANUAL_SETUP_GUIDE.md（手動セットアップガイド）
 
@@ -129,6 +131,28 @@
 **このガイドを読むべきタイミング**: セットアップの最終段階、または環境変数設定時
 
 **次に読むべきドキュメント**: [BRANCH_MANAGEMENT_GUIDE.md](./BRANCH_MANAGEMENT_GUIDE.md)
+
+---
+
+#### AWS_DEPLOYMENT_GUIDE.md（AWS環境デプロイガイド）
+
+**対象読者**: Phase 2-3を実施する方、AWS環境が必要な方
+
+**内容**:
+- AWS前提条件（アカウント、AWS CLI、Terraform）
+- Terraformバックエンド設定（S3/DynamoDB）
+- ネットワークインフラのデプロイ（VPC, NAT Gateway, ALB）
+- ECRリポジトリ作成とイメージプッシュ
+- RDS PostgreSQLのセットアップ
+- ECS Fargateクラスター・タスク・サービス起動
+- WizCloud AWS Connector設定
+- Code-to-Cloud連携設定
+- 検証期間とコスト見積もり（1週間: 約$26）
+- クリーンアップ手順
+
+**このガイドを読むべきタイミング**: Phase 2開始前、AWS環境デプロイ時
+
+**次に読むべきドキュメント**: Phase 2シナリオ（[S06](../phase2-code-to-cloud/S06-sbom-tracking.md) から開始）
 
 ---
 
@@ -294,17 +318,18 @@ cd taskflow-app\scripts\setup
 
 **目的**: Wiz Codeの全機能を包括的に検証する
 
-**推奨期間**: 6日間（40-50時間）
+**推奨期間**: 7日間（45-55時間、AWS環境1週間稼働）
 
 **手順**:
 1. [MANUAL_SETUP_GUIDE.md](./MANUAL_SETUP_GUIDE.md)で完全セットアップ
 2. [ENVIRONMENT_VARIABLES_GUIDE.md](./ENVIRONMENT_VARIABLES_GUIDE.md)でPhase 2環境変数設定
 3. [BRANCH_MANAGEMENT_GUIDE.md](./BRANCH_MANAGEMENT_GUIDE.md)でブランチ戦略理解
 4. Phase 1シナリオ（S01-S05）実施
-5. [AWS_CONSOLE_GUIDE_JA.md](./AWS_CONSOLE_GUIDE_JA.md)でAWS環境準備
+5. **[AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)でAWS環境デプロイ（ECS Fargate, ECR, RDS）**
 6. Phase 2シナリオ（S06-S09）実施
 7. Phase 3シナリオ（S10-S11）実施
 8. [EVIDENCE_COLLECTION_GUIDE.md](./EVIDENCE_COLLECTION_GUIDE.md)で総合エビデンス収集
+9. AWS環境のクリーンアップ（コスト削減のため）
 
 ### パターン3: 顧客デモ向け（選択的実施）
 

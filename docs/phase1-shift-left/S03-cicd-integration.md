@@ -7,11 +7,11 @@ GitHub ActionsのCI/CDパイプラインにWiz CLIを統合し、ビルドプロ
 
 ### 検証内容
 - ✅ Wiz CLIのGitHub Actions統合
-- ✅ IaCスキャンの自動化とSARIFレポート生成
-- ✅ Dockerイメージスキャンの自動化
+- ✅ ソースコードスキャン（バックエンド・フロントエンド）
+- ✅ Dockerイメージビルドとスキャンの自動化
+- ✅ SARIF形式でのレポート生成とGitHub Security統合
 - ✅ ポリシーベースのビルド制御
-- ✅ SBOM（Software Bill of Materials）の生成
-- ✅ GitHub Security タブへの統合
+- ✅ 検証結果のアーティファクト保存
 
 ---
 
@@ -19,11 +19,11 @@ GitHub ActionsのCI/CDパイプラインにWiz CLIを統合し、ビルドプロ
 
 | フェーズ | 所要時間 | 説明 |
 |---------|---------|------|
-| **初回セットアップ** | 60-90分 | GitHub Secrets設定、ワークフロー作成、初回実行 |
-| **検証作業** | 30-45分 | ワークフロー実行確認、結果分析、エビデンス収集 |
-| **再検証** | 15-20分 | 新しいブランチで同じ検証を実施する場合 |
+| **初回セットアップ** | 30-45分 | GitHub Secrets設定、ワークフロー確認、初回実行 |
+| **検証作業** | 20-30分 | ワークフロー実行確認、結果分析、エビデンス収集 |
+| **再検証** | 10-15分 | 新しいブランチで同じ検証を実施する場合 |
 
-**💡 ヒント**: ワークフローファイルは一度作成すれば再利用可能です。再検証時はブランチを切り替えてプッシュするだけです。
+**💡 ヒント**: 既存のワークフローファイルを使用するため、設定は最小限で済みます。
 
 ---
 
@@ -32,21 +32,179 @@ GitHub ActionsのCI/CDパイプラインにWiz CLIを統合し、ビルドプロ
 ### ✅ 必須要件
 - [x] **シナリオ1完了**: Wiz Service Accountが作成済み
 - [x] **シナリオ2完了**: GitHubリポジトリが存在し、Wiz GitHub Appが接続済み
-- [x] **Docker環境**: Docker Desktop またはDocker Engineがローカルにインストール済み
+- [x] **Git環境**: Git 2.30以上がインストール済み
 - [x] **GitHub Actions**: リポジトリでGitHub Actionsが有効化されている
 
 ### 📦 必要なツール
 ```bash
 # ツールのバージョン確認
 git --version          # Git 2.30以上
-docker --version       # Docker 20.10以上
 gh --version          # GitHub CLI 2.0以上（オプション）
 ```
 
 ### 🔑 必要な情報
 - Wiz Service Account Client ID（シナリオ1で取得）
 - Wiz Service Account Client Secret（シナリオ1で取得）
-- GitHubリポジトリのURL（シナリオ2で作成）
+- GitHubリポジトリのURL
+
+---
+
+## 📁 プロジェクト構造の確認
+
+このシナリオでは、**既存の`taskflow-app`プロジェクト**を使用します。
+
+### ディレクトリ構造
+
+```
+WizCodeVerification/
+└── taskflow-app/                    # TaskFlowサンプルアプリケーション
+    ├── .github/
+    │   └── workflows/
+    │       └── S03-wiz-full-scan.yml    ⭐ 既存のワークフローファイル
+    ├── backend/                     # Node.js/Expressバックエンド
+    │   ├── Dockerfile
+    │   ├── package.json
+    │   └── src/
+    ├── frontend/                    # Next.js/Reactフロントエンド
+    │   ├── Dockerfile
+    │   ├── package.json
+    │   └── src/
+    └── terraform/                   # Terraformインフラコード
+        └── environments/
+```
+
+### 🎯 検証対象
+
+| コンポーネント | ファイルパス | スキャン対象 |
+|-------------|------------|------------|
+| **バックエンド** | `taskflow-app/backend/` | ソースコード、依存関係、Dockerfile |
+| **フロントエンド** | `taskflow-app/frontend/` | ソースコード、依存関係、Dockerfile |
+| **ワークフロー** | `taskflow-app/.github/workflows/S03-wiz-full-scan.yml` | CI/CDパイプライン |
+
+---
+
+## 🔧 手順1: 既存ワークフローの確認
+
+### 1.1 ワークフローファイルの内容確認
+
+既存のワークフローファイルを確認します：
+
+```bash
+# taskflow-appディレクトリに移動
+cd ~/WizCodeVerification/taskflow-app
+
+# ワークフローファイルを確認
+cat .github/workflows/S03-wiz-full-scan.yml
+```
+
+**ワークフローの主要な構成要素**:
+
+1. **トリガー設定**:
+   - `push`イベント: `main`, `develop`ブランチへのプッシュ
+   - `pull_request`イベント: `main`ブランチへのPR作成
+
+2. **3つのジョブ**:
+   - **source-code-scan**: バックエンド・フロントエンドのソースコードスキャン
+   - **docker-build-and-scan**: Dockerイメージビルド＆スキャン（matrix戦略）
+   - **generate-report**: 脆弱性レポート生成
+
+3. **重要な機能**:
+   - SARIF形式でのレポート出力
+   - GitHub Securityタブへの自動アップロード
+   - スキャン結果のアーティファクト保存
+   - ポリシー違反時のビルド制御
+
+### 1.2 ワークフローの主要ステップ
+
+**ソースコードスキャンジョブ**:
+```yaml
+- name: バックエンドスキャン
+  run: |
+    wizcli dir scan \
+      --path ./backend \
+      --name "backend-source-${{ github.sha }}" \
+      --tag "component=backend" \
+      --tag "branch=${{ github.ref_name }}" \
+      --tag "scan-type=source-code" \
+      --policy-hits-only
+```
+
+**Dockerイメージスキャンジョブ**（matrix戦略）:
+```yaml
+strategy:
+  matrix:
+    component: [backend, frontend]
+
+steps:
+  - name: Dockerイメージビルド
+    run: |
+      cd ${{ matrix.component }}
+      docker build -t taskflow-${{ matrix.component }}:${{ github.sha }} .
+
+  - name: Dockerイメージスキャン
+    run: |
+      wizcli docker scan \
+        --image taskflow-${{ matrix.component }}:${{ github.sha }} \
+        --output docker-${{ matrix.component }}-results.sarif,sarif \
+        --policy-hits-only
+```
+
+### 1.3 ワークフローの特徴
+
+| 機能 | 説明 | 検証ポイント |
+|------|------|------------|
+| **permissions設定** | `security-events: write`でGitHub Security統合 | SARIFアップロードが成功するか |
+| **matrix戦略** | backend/frontendを並列スキャン | 両方のコンポーネントがスキャンされるか |
+| **continue-on-error** | スキャン失敗でもワークフロー継続 | 結果がアーティファクトに保存されるか |
+| **タグ付け** | component, branch, commit情報を記録 | WizCloudで検索可能か |
+| **mainブランチのみECRプッシュ** | 本番イメージは`main`のみデプロイ | 条件分岐が正しく動作するか |
+
+---
+
+## 🔧 手順2: GitHub Secretsの設定
+
+### 2.1 AWS認証情報の設定（後のPhaseで使用）
+
+```bash
+# AWSアカウント情報を設定（ECRプッシュ用、Phase 2で使用）
+gh secret set AWS_ACCOUNT_ID --body "123456789012"
+gh secret set AWS_REGION --body "ap-northeast-1"
+gh secret set AWS_ACCESS_KEY_ID --body "AKIAXXXXXXXXXXXXXXXX"
+gh secret set AWS_SECRET_ACCESS_KEY --body "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+### 2.2 Wiz認証情報の設定
+
+```bash
+# Wiz認証情報を設定
+gh secret set WIZ_CLIENT_ID --body "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+gh secret set WIZ_CLIENT_SECRET --body "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# 設定の確認
+gh secret list
+```
+
+**期待される出力**:
+```
+AWS_ACCOUNT_ID         Updated 2025-12-03
+AWS_ACCESS_KEY_ID      Updated 2025-12-03
+AWS_REGION             Updated 2025-12-03
+AWS_SECRET_ACCESS_KEY  Updated 2025-12-03
+WIZ_CLIENT_ID          Updated 2025-12-03
+WIZ_CLIENT_SECRET      Updated 2025-12-03
+```
+
+### 2.3 GitHub Web UIでの設定（代替方法）
+
+1. GitHubリポジトリを開く
+2. **Settings** > **Secrets and variables** > **Actions** に移動
+3. **New repository secret** をクリック
+4. 上記のSecretsを1つずつ追加
+
+**🔐 セキュリティ注意**:
+- Secretsは一度保存すると読み取りできません（編集のみ可能）
+- 本番環境では、環境ごとにSecretsを分けることを推奨します
+- AWS認証情報はPhase 2（S06-S08）で実際に使用します
 
 ---
 
@@ -55,748 +213,544 @@ gh --version          # GitHub CLI 2.0以上（オプション）
 CI/CD検証専用のブランチを作成します：
 
 ```bash
-# 既存リポジトリに移動（シナリオ2で作成したもの）
-cd ~/wiz-code-verification/scenario-01
+# taskflow-appディレクトリに移動
+cd ~/WizCodeVerification/taskflow-app
 
 # 検証用ブランチを作成
-git checkout -b scenario-03-cicd-integration
+git checkout -b scenario-03-cicd-verification-$(date +%Y%m%d)
 
 # ブランチの確認
 git branch
-# * scenario-03-cicd-integration
-#   main
 ```
 
 **💡 ヒント**:
-- このブランチでワークフローファイルを作成・テストします
-- 動作確認後、mainブランチにマージできます
-- 再検証時は新しいブランチ（例: `scenario-03-revalidation-YYYYMMDD`）を作成してください
+- 日付付きブランチ名で検証履歴を管理できます
+- 例: `scenario-03-cicd-verification-20251203`
+- 再検証時は新しい日付で新ブランチを作成してください
 
 ---
 
-## 🔧 手順1: GitHub Secretsの設定
+## 🔧 手順3: ワークフローのトリガーとテスト
 
-### 1.1 GitHub CLIでSecretsを設定（推奨）
+### 3.1 テストコミットの作成
 
-```bash
-# Wiz認証情報を設定
-gh secret set WIZ_CLIENT_ID --body "your_client_id_here"
-gh secret set WIZ_CLIENT_SECRET --body "your_client_secret_here"
-
-# 設定の確認
-gh secret list
-# WIZ_CLIENT_ID       Updated 2025-12-03
-# WIZ_CLIENT_SECRET   Updated 2025-12-03
-```
-
-### 1.2 GitHub Web UIでSecretsを設定（代替方法）
-
-1. GitHubリポジトリを開く
-2. **Settings** > **Secrets and variables** > **Actions** に移動
-3. **New repository secret** をクリック
-4. 以下の2つのSecretを追加：
-
-| Name | Secret | 説明 |
-|------|--------|------|
-| `WIZ_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Service Account Client ID |
-| `WIZ_CLIENT_SECRET` | `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` | Service Account Secret |
-
-**🔐 セキュリティ注意**:
-- Secretsは一度保存すると読み取りできません（編集のみ可能）
-- 本番環境では、環境ごとにSecretsを分けることを推奨します
-
----
-
-## 🔧 手順2: IaCスキャン用ワークフローの作成
-
-### 2.1 ワークフローディレクトリの作成
+ワークフローをトリガーするために、軽微な変更をコミットします：
 
 ```bash
-# .github/workflowsディレクトリを作成
-mkdir -p .github/workflows
-```
+# READMEに検証記録を追加
+echo "" >> README.md
+echo "## S03検証: $(date '+%Y-%m-%d %H:%M:%S')" >> README.md
+echo "- Wiz CLI GitHub Actions統合テスト" >> README.md
+echo "- ブランチ: $(git branch --show-current)" >> README.md
 
-### 2.2 IaCスキャンワークフローファイルの作成
-
-```bash
-cat > .github/workflows/wiz-iac-scan.yml << 'EOF'
-name: Wiz IaC Security Scan
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - '**.tf'
-      - '**.yaml'
-      - '**.yml'
-      - '**.json'
-
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
-jobs:
-  wiz-iac-scan:
-    name: Wiz IaC Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download Wiz CLI
-        run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
-          wizcli version
-
-      - name: Authenticate to Wiz
-        run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
-
-      - name: Run IaC Scan
-        id: iac_scan
-        run: |
-          wizcli iac scan \
-            --path . \
-            --policy "Default IaC policy" \
-            --policy-hits-only \
-            --output iac-results.sarif,sarif \
-            --output iac-results.json,json \
-            --tag "repo=${{ github.repository }}" \
-            --tag "branch=${{ github.ref_name }}" \
-            --tag "commit_sha=${{ github.sha }}"
-        continue-on-error: true
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: iac-results.sarif
-          category: wiz-iac
-
-      - name: Upload scan results as artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: wiz-iac-scan-results
-          path: |
-            iac-results.sarif
-            iac-results.json
-
-      - name: Check scan results
-        if: steps.iac_scan.outcome == 'failure'
-        run: |
-          echo "❌ IaC scan found policy violations"
-          echo "📊 Check the Security tab for detailed results"
-          cat iac-results.json | jq '.summary'
-          exit 1
-EOF
-```
-
-### 2.3 ワークフロー構成の解説
-
-**重要なポイント**:
-
-| 設定項目 | 説明 | 検証ポイント |
-|---------|------|------------|
-| `on: push/pull_request` | プッシュ時とPR作成時に自動実行 | mainへのpushでトリガーされるか |
-| `permissions: security-events: write` | GitHub Security タブへの書き込み権限 | SARIFアップロードが成功するか |
-| `--policy-hits-only` | ポリシー違反のみレポート | 結果が絞り込まれているか |
-| `continue-on-error: true` | スキャン失敗でもワークフロー継続 | 後続ステップが実行されるか |
-| `exit 1` | 最終的にビルドを失敗させる | ポリシー違反時にビルドが失敗するか |
-
----
-
-## 🔧 手順3: Dockerイメージスキャン用ワークフローの作成
-
-### 3.1 テスト用Dockerfileの作成
-
-```bash
-# シンプルなWebアプリケーション用のDockerfileを作成
-cat > Dockerfile.webapp << 'EOF'
-# Multi-stage build for production
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-# Package files
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Application code
-COPY . .
-RUN npm run build
-
-# Production image
-FROM node:18-alpine
-
-# Security best practices
-RUN apk add --no-cache dumb-init
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-
-WORKDIR /app
-
-# Copy files with proper ownership
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
-
-# Run as non-root user
-USER nodejs
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-EXPOSE 3000
-
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/server.js"]
-EOF
-```
-
-### 3.2 Dockerスキャンワークフローファイルの作成
-
-```bash
-cat > .github/workflows/wiz-docker-scan.yml << 'EOF'
-name: Wiz Docker Image Security Scan
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - '**/Dockerfile*'
-      - '.github/workflows/wiz-docker-scan.yml'
-
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
-jobs:
-  build-and-scan:
-    name: Build and Scan Docker Image
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.webapp
-          push: false
-          load: true
-          tags: |
-            wiz-verification-app:${{ github.sha }}
-            wiz-verification-app:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Download Wiz CLI
-        run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
-
-      - name: Authenticate to Wiz
-        run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
-
-      - name: Scan Docker image
-        id: docker_scan
-        run: |
-          wizcli docker scan \
-            --image wiz-verification-app:${{ github.sha }} \
-            --policy "Default vulnerabilities policy" \
-            --policy-hits-only \
-            --output docker-results.sarif,sarif \
-            --output docker-results.json,json \
-            --tag "repo=${{ github.repository }}" \
-            --tag "image=wiz-verification-app" \
-            --tag "commit_sha=${{ github.sha }}"
-        continue-on-error: true
-
-      - name: Generate SBOM
-        run: |
-          wizcli docker scan \
-            --image wiz-verification-app:${{ github.sha }} \
-            --output sbom.json,cyclonedx
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: docker-results.sarif
-          category: wiz-docker
-
-      - name: Upload scan results and SBOM
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: wiz-docker-scan-results
-          path: |
-            docker-results.sarif
-            docker-results.json
-            sbom.json
-
-      - name: Check scan results
-        if: steps.docker_scan.outcome == 'failure'
-        run: |
-          echo "❌ Docker image scan found policy violations"
-          echo "📊 Scan Summary:"
-          cat docker-results.json | jq '.summary'
-          echo ""
-          echo "🔴 Critical vulnerabilities:"
-          cat docker-results.json | jq '.vulnerabilities[] | select(.severity == "CRITICAL") | {id: .id, package: .package, version: .version}'
-          exit 1
-EOF
-```
-
-### 3.3 SBOM（Software Bill of Materials）について
-
-**SBOMとは**: ソフトウェアコンポーネントの詳細なリストで、以下の情報を含みます：
-- パッケージ名、バージョン
-- ライセンス情報
-- 依存関係ツリー
-- 既知の脆弱性
-
-**検証ポイント**:
-- CycloneDX形式でSBOMが生成されるか
-- GitHub ArtifactsからSBOMをダウンロードできるか
-- SBOMに含まれるパッケージ情報が正確か
-
----
-
-## 🔧 手順4: ワークフローのコミットと実行
-
-### 4.1 ファイルをコミットしてプッシュ
-
-```bash
-# すべてのファイルをステージング
-git add .
-
-# ファイルを確認
-git status
-# On branch scenario-03-cicd-integration
-# Changes to be committed:
-#   new file:   .github/workflows/wiz-iac-scan.yml
-#   new file:   .github/workflows/wiz-docker-scan.yml
-#   new file:   Dockerfile.webapp
+# 変更を確認
+git diff README.md
 
 # コミット
-git commit -m "S03: Add Wiz CLI GitHub Actions workflows
+git add README.md
+git commit -m "S03: CI/CD integration verification test
 
-- IaC scan workflow with SARIF upload
-- Docker image scan workflow with SBOM generation
-- Auto-fail build on policy violations"
+- Trigger GitHub Actions workflow
+- Test Wiz CLI source code scan
+- Test Docker image build and scan
+- Verify SARIF upload to GitHub Security"
 
 # GitHubにプッシュ
-git push -u origin scenario-03-cicd-integration
+git push -u origin $(git branch --show-current)
 ```
 
-### 4.2 GitHub Actionsの実行確認
+### 3.2 GitHub Actionsの実行確認
 
-**Web UIで確認**:
-```
+**方法1: GitHub Web UI**
+
 1. GitHubリポジトリを開く
-2. "Actions" タブをクリック
-3. 実行中のワークフローを確認:
-   ✅ Wiz IaC Security Scan - Running
-   ✅ Wiz Docker Image Security Scan - Running
-```
+2. **Actions** タブをクリック
+3. 最新のワークフロー実行を確認:
+   - ワークフロー名: `S03 - Wiz Full Scan`
+   - トリガー: `push`
+   - ブランチ: `scenario-03-cicd-verification-YYYYMMDD`
 
-**GitHub CLIで確認（オプション）**:
+**方法2: GitHub CLI**
+
 ```bash
 # ワークフローの実行状況を確認
-gh run list --branch scenario-03-cicd-integration
+gh run list --workflow="S03-wiz-full-scan.yml" --limit 5
 
-# 特定のワークフローの詳細を確認
-gh run view --log
+# 最新のワークフローをウォッチ
+gh run watch
 ```
 
-### 4.3 ワークフロー実行ログの確認
+### 3.3 ワークフロー実行ログの確認
 
-各ワークフローのログで以下が表示されることを確認：
+各ジョブのログで以下が表示されることを確認します：
 
-**IaC Scanワークフロー**:
+**source-code-scanジョブ**:
 ```
-✅ Checkout repository
-✅ Download Wiz CLI (wizcli version: 0.x.x)
-✅ Authenticate to Wiz (Authentication successful)
-❌ Run IaC Scan (Found 5 policy violations)
-   - terraform/main.tf: S3 bucket with public access
-   - terraform/main.tf: RDS instance not encrypted
-   - terraform/security-groups.tf: Security group open to 0.0.0.0/0
-📤 Upload SARIF to GitHub Security (Success)
-📦 Upload scan results as artifact (Success)
-❌ Check scan results (Build failed due to policy violations)
+✅ コードチェックアウト
+✅ Wiz CLIダウンロード
+✅ Wiz認証 (Authentication successful)
+🔍 バックエンドスキャン
+   - Scanning: ./backend
+   - Files scanned: 127
+   - Policy violations found: 2
+🔍 フロントエンドスキャン
+   - Scanning: ./frontend
+   - Files scanned: 83
+   - Policy violations found: 1
 ```
 
-**Docker Scanワークフロー**:
+**docker-build-and-scanジョブ（backend）**:
 ```
-✅ Checkout repository
-✅ Set up Docker Buildx
-✅ Build Docker image (wiz-verification-app:abc123)
-✅ Download Wiz CLI
-✅ Authenticate to Wiz
-❌ Scan Docker image (Found 3 critical vulnerabilities)
-✅ Generate SBOM (sbom.json created)
-📤 Upload SARIF to GitHub Security (Success)
-📦 Upload scan results and SBOM (Success)
-❌ Check scan results (Build failed due to vulnerabilities)
+✅ コードチェックアウト
+✅ AWS認証情報設定
+✅ Amazon ECRログイン
+✅ Dockerイメージビルド
+   - Building: taskflow-backend:abc123
+   - Build time: 3m 42s
+🔍 Dockerイメージスキャン
+   - Scanning: taskflow-backend:abc123
+   - Vulnerabilities: 15 (3 CRITICAL, 7 HIGH, 5 MEDIUM)
+   - Policy violations: Yes
+📤 SARIF結果をGitHub Securityにアップロード (Success)
+📦 スキャン結果をArtifactとして保存 (Success)
+⚠️  スキャン結果の確認: Policy violations detected
+```
+
+**docker-build-and-scanジョブ（frontend）**:
+```
+（同様の手順でfrontendをスキャン）
+```
+
+**generate-reportジョブ**:
+```
+✅ コードチェックアウト
+✅ Wiz CLIダウンロード
+✅ Wiz認証
+📝 スキャンサマリー出力
+📦 レポートをアーティファクトとして保存 (Success)
 ```
 
 ---
 
-## 🔧 手順5: WizCloudコンソールでのスキャン結果確認
+## 🔧 手順4: GitHub Securityタブでの結果確認
+
+### 4.1 Code Scanningアラートの確認
+
+1. GitHubリポジトリを開く
+2. **Security** タブをクリック
+3. 左サイドバーから **Code scanning** を選択
+4. アラート一覧を確認
+
+**期待される結果**:
+
+| Tool | Category | Alerts | Severity |
+|------|----------|--------|----------|
+| Wiz | wiz-docker-backend | 5-10件 | CRITICAL/HIGH |
+| Wiz | wiz-docker-frontend | 3-7件 | CRITICAL/HIGH |
+
+### 4.2 アラートの詳細確認
+
+アラートをクリックして詳細を確認：
+
+```
+⚠️  Critical: Known vulnerability in node:18-alpine base image
+├─ CVE-2024-XXXXX
+├─ Severity: CRITICAL (CVSS 9.8)
+├─ Affected: node:18-alpine
+├─ Fixed in: node:20-alpine
+└─ Recommendation: Upgrade to node:20-alpine
+
+📍 Location:
+├─ File: backend/Dockerfile
+├─ Line: 1
+└─ Code:
+    FROM node:18-alpine  # Vulnerable base image
+```
+
+### 4.3 SARIF形式の利点
+
+**GitHub Securityとの統合メリット**:
+- ✅ コードレビュー時にアラートが自動表示
+- ✅ PRマージ前にセキュリティチェック可能
+- ✅ 脆弱性の経年変化を追跡可能
+- ✅ ブランチ保護ルールと連携可能
+
+---
+
+## 🔧 手順5: WizCloudコンソールでの結果確認
 
 ### 5.1 Code Scansページでの確認
 
 1. **WizCloudにログイン**: https://app.wiz.io/
 2. **Code** > **Scans** に移動
-3. リポジトリ名で検索: `your-repo-name`
+3. リポジトリ名で検索: `taskflow-app`
 
 **確認ポイント**:
-- 最新のスキャン結果が表示されている
-- Scan Typeが「IaC」「Docker Image」で分かれている
-- Tagsに `repo`, `branch`, `commit_sha` が記録されている
+
+| 項目 | 期待される値 | 実際の値 |
+|------|------------|---------|
+| **Scan Type** | Source Code / Docker Image | ✅ |
+| **Branch** | scenario-03-cicd-verification-YYYYMMDD | ✅ |
+| **Commit SHA** | プッシュしたコミットのSHA | ✅ |
+| **Tags** | component=backend, scan-type=source-code | ✅ |
+| **Policy Hits** | 検出あり | ✅ |
 
 ### 5.2 Issuesの詳細確認
 
 ```
 Code > Issues に移動
-├─ フィルター: Repository = your-repo-name
+├─ フィルター: Repository = taskflow-app
 └─ 検出されたIssuesの例:
-    ├─ [IaC] S3 bucket allows public access
+    ├─ [Docker] Critical vulnerability in base image
     │   ├─ Severity: CRITICAL
-    │   ├─ File: terraform/main.tf:10-18
-    │   └─ Recommendation: Add aws_s3_bucket_public_access_block
+    │   ├─ Image: taskflow-backend:abc123
+    │   ├─ CVE: CVE-2024-XXXXX
+    │   └─ Recommendation: Upgrade base image
     │
-    ├─ [IaC] RDS instance not encrypted at rest
+    ├─ [Source Code] SQL Injection vulnerability
     │   ├─ Severity: HIGH
-    │   ├─ File: terraform/rds.tf:25
-    │   └─ Recommendation: Set storage_encrypted = true
+    │   ├─ File: backend/src/controllers/user.controller.ts:42
+    │   ├─ Line: const query = `SELECT * FROM users WHERE id = ${req.params.id}`
+    │   └─ Recommendation: Use parameterized queries
     │
-    └─ [Vulnerability] Log4j RCE vulnerability (CVE-2021-44228)
-        ├─ Severity: CRITICAL
-        ├─ Package: log4j-core:2.14.1
-        └─ Fix: Upgrade to version 2.17.1
+    └─ [Dependencies] Known vulnerability in npm package
+        ├─ Severity: MEDIUM
+        ├─ Package: express@4.17.1
+        ├─ Fixed in: express@4.18.0
+        └─ Recommendation: npm update express
+```
+
+### 5.3 Scanの詳細情報確認
+
+Scanをクリックして詳細を確認：
+
+```
+Scan Details
+├─ Scan ID: scan-abc123def456
+├─ Repository: taskflow-app
+├─ Branch: scenario-03-cicd-verification-20251203
+├─ Commit: abc123def456...
+├─ Scan Type: Source Code
+├─ Scan Time: 2025-12-03 10:30:45 UTC
+├─ Duration: 2m 15s
+└─ Results:
+    ├─ Files Scanned: 127
+    ├─ Total Issues: 8
+    ├─ Critical: 2
+    ├─ High: 3
+    ├─ Medium: 2
+    └─ Low: 1
 ```
 
 ---
 
-## 🔧 手順6: GitHub Securityタブでの結果確認
+## 🔧 手順6: スキャン結果アーティファクトのダウンロード
 
-### 6.1 Code Scanningアラートの確認
+### 6.1 GitHub Actionsアーティファクトの確認
 
+1. GitHubリポジトリの **Actions** タブを開く
+2. 実行したワークフローをクリック
+3. ページ下部の **Artifacts** セクションを確認
+
+**期待されるアーティファクト**:
+
+| Artifact名 | サイズ | 内容 |
+|-----------|-------|------|
+| `docker-scan-results-backend-abc123` | ~50KB | backend Docker scan results (SARIF + JSON) |
+| `docker-scan-results-frontend-abc123` | ~40KB | frontend Docker scan results (SARIF + JSON) |
+| `wiz-scan-summary-abc123` | ~2KB | Scan summary report |
+
+### 6.2 アーティファクトのダウンロードと確認
+
+```bash
+# GitHub CLIでアーティファクトをダウンロード
+gh run download --name docker-scan-results-backend-abc123
+
+# SARIF結果の確認
+cat docker-backend-results.json | jq '.summary'
 ```
-1. GitHubリポジトリを開く
-2. "Security" タブをクリック
-3. "Code scanning" セクションを選択
-4. "Tool" フィルターで "Wiz" を選択
-```
 
-**期待される表示**:
-```
-🔴 Critical (3)
-├─ S3 Bucket allows public access (terraform/main.tf:10-18)
-├─ RDS instance not encrypted (terraform/rds.tf:25)
-└─ Container has critical CVE-2021-44228 (Dockerfile.webapp)
-
-🟡 High (4)
-├─ Security group allows all traffic (terraform/security-groups.tf:43-48)
-├─ Hardcoded database password (terraform/rds.tf:27)
-├─ Using deprecated base image (Dockerfile.webapp:1)
-└─ Root user in container (Dockerfile:12)
-```
-
-### 6.2 アラートの詳細確認
-
-任意のアラート（例: "S3 Bucket allows public access"）をクリック：
-
-**表示される情報**:
-```
-Problem:
-  S3バケットがパブリックアクセスを許可しています。
-  これにより、機密データが一般公開される可能性があります。
-
-Recommendation:
-  aws_s3_bucket_public_access_block リソースを追加し、
-  すべてのパブリックアクセスをブロックしてください。
-
-Locations:
-  - terraform/main.tf, lines 10-18
-
-Severity: Critical
-CWE: CWE-732 (Incorrect Permission Assignment)
-Tags: data-exposure, compliance, GDPR
+**期待される出力（JSON）**:
+```json
+{
+  "summary": {
+    "total_issues": 15,
+    "critical": 3,
+    "high": 7,
+    "medium": 5,
+    "low": 0
+  },
+  "scan_metadata": {
+    "scan_time": "2025-12-03T10:32:15Z",
+    "image": "taskflow-backend:abc123",
+    "base_image": "node:18-alpine",
+    "tags": {
+      "component": "backend",
+      "branch": "scenario-03-cicd-verification-20251203",
+      "commit": "abc123def456"
+    }
+  }
+}
 ```
 
 ---
 
 ## ✅ 検証チェックリスト
 
-以下のチェックリストを使用して、シナリオ3の検証が完了したことを確認してください：
+### GitHub Actions統合
 
-### GitHub Secrets設定
-- [ ] `WIZ_CLIENT_ID` がGitHub Secretsに設定されている
-- [ ] `WIZ_CLIENT_SECRET` がGitHub Secretsに設定されている
-- [ ] Secretsがワークフローで正しく参照されている（エラーなし）
+- [ ] **Secretsが正しく設定されている**
+  - [ ] WIZ_CLIENT_ID が設定済み
+  - [ ] WIZ_CLIENT_SECRET が設定済み
+  - [ ] AWS認証情報が設定済み（Phase 2用）
 
-### IaCスキャンワークフロー
-- [ ] `wiz-iac-scan.yml` がリポジトリに存在する
-- [ ] プッシュ時にワークフローが自動実行される
-- [ ] Wiz CLIが正常にダウンロード・認証される
-- [ ] IaCスキャンが実行され、問題が検出される
-- [ ] SARIF形式のレポートが生成される
-- [ ] GitHub SecurityタブにIaC問題がアップロードされる
+- [ ] **ワークフローが正常にトリガーされる**
+  - [ ] push時にワークフローが起動
+  - [ ] 3つのジョブすべてが実行される
+  - [ ] matrix戦略でbackend/frontendが並列実行される
 
-### Dockerスキャンワークフロー
-- [ ] `wiz-docker-scan.yml` がリポジトリに存在する
-- [ ] Dockerイメージが正常にビルドされる
-- [ ] イメージスキャンが実行され、脆弱性が検出される
-- [ ] SBOM（Software Bill of Materials）が生成される
-- [ ] スキャン結果がArtifactsとしてアップロードされる
+### Wizスキャン結果
+
+- [ ] **ソースコードスキャンが成功**
+  - [ ] バックエンドソースコードがスキャンされる
+  - [ ] フロントエンドソースコードがスキャンされる
+  - [ ] ポリシー違反が検出される
+
+- [ ] **Dockerイメージスキャンが成功**
+  - [ ] backendイメージがビルドされる
+  - [ ] frontendイメージがビルドされる
+  - [ ] 各イメージがスキャンされる
+  - [ ] 脆弱性が検出・レポートされる
 
 ### GitHub Security統合
-- [ ] GitHub SecurityタブでWizのアラートが表示される
-- [ ] アラートに「Problem」「Recommendation」「Locations」が含まれる
-- [ ] Severity（Critical/High/Medium/Low）が正しく表示される
-- [ ] ファイル名と行番号へのリンクが機能する
 
-### ポリシーベースのビルド制御
-- [ ] ポリシー違反がある場合、ビルドが失敗する
-- [ ] ワークフローログに具体的なエラー内容が表示される
-- [ ] `continue-on-error: true` でスキャン後も後続ステップが実行される
+- [ ] **SARIF形式でアップロード成功**
+  - [ ] backend SARIF がアップロードされる
+  - [ ] frontend SARIF がアップロードされる
+  - [ ] GitHub Securityタブでアラート表示される
+
+- [ ] **アラートの詳細が確認できる**
+  - [ ] CVE番号が表示される
+  - [ ] 影響範囲（ファイル・行番号）が表示される
+  - [ ] 修正方法が提示される
+
+### WizCloud連携
+
+- [ ] **Code Scansに結果が表示される**
+  - [ ] Source Code scanが記録される
+  - [ ] Docker Image scanが記録される
+  - [ ] タグ情報が正しく記録される
+
+- [ ] **Code Issuesで詳細確認可能**
+  - [ ] 重大度別にフィルタリングできる
+  - [ ] ファイルパス・行番号が表示される
+  - [ ] 修正推奨事項が表示される
+
+### アーティファクト保存
+
+- [ ] **スキャン結果がアーティファクトとして保存される**
+  - [ ] SARIF形式のファイルが保存される
+  - [ ] JSON形式のファイルが保存される
+  - [ ] scan summaryが保存される
 
 ---
 
 ## 📸 エビデンス収集
 
-以下の画面をスクリーンショットとして保存し、検証レポートに添付してください：
+以下のスクリーンショットを取得してエビデンスとして保存します：
 
-### 必須エビデンス（6-8枚）
+### 1. GitHub Actions実行結果（必須）
+```
+evidence/phase1/S03/
+├── 01_github_actions_workflow_list.png
+│   └── Actionsタブ、S03ワークフロー実行一覧
+├── 02_workflow_run_summary.png
+│   └── ワークフロー実行サマリー、3ジョブの成功/失敗状況
+└── 03_workflow_job_logs.png
+    └── 各ジョブの実行ログ詳細
+```
 
-| # | スクリーンショット | 取得タイミング | ファイル名例 |
-|---|------------------|--------------|--------------|
-| 1 | **GitHub Secrets設定画面** | Secrets設定完了後 | `s03-01-github-secrets.png` |
-|   | WIZ_CLIENT_IDとWIZ_CLIENT_SECRETが表示されている |  |  |
-| 2 | **GitHub Actions実行一覧** | ワークフロー実行中 | `s03-02-actions-running.png` |
-|   | 2つのワークフローが実行されている状態 |  |  |
-| 3 | **IaCスキャンログ** | ワークフロー完了後 | `s03-03-iac-scan-log.png` |
-|   | スキャン実行とポリシー違反検出のログ |  |  |
-| 4 | **Dockerスキャンログ** | ワークフロー完了後 | `s03-04-docker-scan-log.png` |
-|   | イメージスキャンとSBOM生成のログ |  |  |
-| 5 | **GitHub Security タブ** | スキャン完了後 | `s03-05-security-alerts.png` |
-|   | Code scanningアラート一覧（Critical/Highが表示） |  |  |
-| 6 | **アラート詳細画面** | アラートクリック後 | `s03-06-alert-detail.png` |
-|   | Problem、Recommendation、Locationsが表示 |  |  |
-| 7 | **Artifacts画面** | ワークフロー完了後 | `s03-07-artifacts.png` |
-|   | スキャン結果とSBOMがダウンロード可能 |  |  |
-| 8 | **WizCloud Scans画面** | WizCloudログイン後 | `s03-08-wizcloud-scans.png` |
-|   | GitHub Actionsからのスキャン結果が表示 |  |  |
+### 2. Docker Scanジョブ詳細（必須）
+```
+evidence/phase1/S03/
+├── 04_docker_backend_scan_log.png
+│   └── backendイメージスキャン結果ログ
+├── 05_docker_frontend_scan_log.png
+│   └── frontendイメージスキャン結果ログ
+└── 06_scan_artifacts.png
+    └── アーティファクト一覧（SARIF/JSON保存確認）
+```
 
-### オプションエビデンス
-- [ ] SBOM JSONファイルの内容（テキストエディタで開いた状態）
-- [ ] ビルド失敗時のエラーメッセージ詳細
-- [ ] WizCloudのIssues詳細画面
+### 3. GitHub Security統合（必須）
+```
+evidence/phase1/S03/
+├── 07_github_security_alerts_list.png
+│   └── Securityタブ、Code scanning alerts一覧
+├── 08_alert_detail_backend.png
+│   └── backendアラート詳細（CVE情報、修正方法）
+└── 09_alert_detail_frontend.png
+    └── frontendアラート詳細
+```
+
+### 4. WizCloud Console（必須）
+```
+evidence/phase1/S03/
+├── 10_wizcloud_code_scans.png
+│   └── Code > Scans、taskflow-appスキャン一覧
+├── 11_scan_detail_source.png
+│   └── Source Codeスキャン詳細
+├── 12_scan_detail_docker.png
+│   └── Docker Imageスキャン詳細
+└── 13_code_issues_list.png
+    └── Code > Issues、検出されたIssues一覧
+```
 
 ---
 
 ## 🔧 トラブルシューティング
 
-### 問題1: Wiz CLIのダウンロードに失敗する
+### ❌ 問題1: ワークフローが実行されない
 
 **症状**:
 ```
-curl: (404) Not Found
-Error: Failed to download Wiz CLI
+Actionsタブにワークフロー実行が表示されない
 ```
 
-**原因**: Wiz CLIのダウンロードURLが変更された
+**原因と対処**:
+1. **ブランチ名の確認**:
+   ```bash
+   # mainまたはdevelopブランチにプッシュしたか確認
+   git branch --show-current
 
-**解決策**:
-```bash
-# 最新のダウンロードURLを確認
-# Wizドキュメント: https://docs.wiz.io/wiz-cli
+   # トリガー対象ブランチにプッシュ
+   git checkout main
+   git merge scenario-03-cicd-verification-20251203
+   git push origin main
+   ```
 
-# 特定のバージョンを指定:
-curl -o wizcli https://downloads.wiz.io/wizcli/v0.104.0/wizcli-linux-amd64
-chmod +x wizcli
-sudo mv wizcli /usr/local/bin/
-```
+2. **GitHub Actionsが有効か確認**:
+   - Settings > Actions > General
+   - "Allow all actions and reusable workflows" を選択
 
----
+3. **ワークフローファイルの構文エラー**:
+   ```bash
+   # YAMLシンタックスチェック
+   yamllint .github/workflows/S03-wiz-full-scan.yml
+   ```
 
-### 問題2: 認証に失敗する
+### ❌ 問題2: Wiz認証エラー
 
 **症状**:
 ```
-Error: Authentication failed
-Invalid client credentials
+Error: Failed to authenticate to Wiz
+Status code: 401 Unauthorized
 ```
 
-**原因**: GitHub Secretsが正しく設定されていない、または環境変数が渡されていない
+**原因と対処**:
+1. **Secretsの確認**:
+   ```bash
+   # GitHub CLIでSecretsを確認
+   gh secret list
 
-**解決策**:
-```bash
-# 1. GitHub Secretsを確認
-# Repository > Settings > Secrets and variables > Actions
-# WIZ_CLIENT_ID と WIZ_CLIENT_SECRET が存在するか確認
+   # Secretsが存在しない場合は再設定
+   gh secret set WIZ_CLIENT_ID --body "your_client_id"
+   gh secret set WIZ_CLIENT_SECRET --body "your_client_secret"
+   ```
 
-# 2. ワークフローでSecretsのデバッグ（最初の5文字のみ表示）
-- name: Debug secrets
-  run: |
-    echo "Client ID (first 5 chars): ${WIZ_CLIENT_ID:0:5}"
-  env:
-    WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+2. **Wiz Service Accountの有効性確認**:
+   - WizCloudコンソール > Settings > Service Accounts
+   - Service Accountが有効（Active）であることを確認
+   - 必要であれば新しいSecretを再生成
 
-# 3. Wiz CLIの認証を手動でテスト
-wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
-```
+3. **認証情報の形式確認**:
+   - Client IDはUUID形式（xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）
+   - Client Secretは英数字64文字程度
 
----
-
-### 問題3: SARIFアップロードに失敗する
+### ❌ 問題3: Dockerイメージビルドエラー
 
 **症状**:
 ```
-Error: upload-sarif action failed
-Unable to upload SARIF file to GitHub Security
+Error: Failed to build Docker image
+ERROR [internal] load metadata for docker.io/library/node:18-alpine
 ```
 
-**原因**: `permissions` 設定が不足、またはSARIFファイルが存在しない
+**原因と対処**:
+1. **Dockerfileのパス確認**:
+   ```yaml
+   # ワークフローのmatrixステップを確認
+   cd ${{ matrix.component }}  # backend または frontend
+   docker build -t taskflow-${{ matrix.component }}:${{ github.sha }} .
+   ```
 
-**解決策**:
-```yaml
-# 1. permissionsセクションを確認
-permissions:
-  contents: read
-  security-events: write  # これが必須
-  actions: read
+2. **ベースイメージの存在確認**:
+   ```bash
+   # ローカルでビルドテスト
+   cd backend
+   docker build -t test-backend .
+   ```
 
-# 2. SARIFファイルの存在を確認
-- name: Check SARIF file
-  run: |
-    if [ ! -f "iac-results.sarif" ]; then
-      echo "❌ SARIF file not found"
-      ls -la
-      exit 1
-    fi
-    echo "✅ SARIF file exists"
-    cat iac-results.sarif | head -n 20
+3. **Dockerfile構文エラー**:
+   ```bash
+   # Dockerfileの検証
+   docker build --no-cache -t test .
+   ```
 
-# 3. upload-sarif アクションに if: always() を追加
-- name: Upload SARIF to GitHub Security
-  uses: github/codeql-action/upload-sarif@v3
-  if: always()  # スキャン失敗時もアップロード
-  with:
-    sarif_file: iac-results.sarif
-    category: wiz-iac
+### ❌ 問題4: SARIF アップロードエラー
+
+**症状**:
 ```
+Error: Code scanning upload failed
+The process '/usr/bin/docker' failed with exit code 1
+```
+
+**原因と対処**:
+1. **permissions設定の確認**:
+   ```yaml
+   # ワークフローファイルのpermissions確認
+   permissions:
+     contents: read
+     security-events: write  # ← これが必須
+     actions: read
+   ```
+
+2. **SARIF ファイルの存在確認**:
+   ```bash
+   # スキャンステップでSARIF出力を確認
+   --output docker-${{ matrix.component }}-results.sarif,sarif
+   ```
+
+3. **GitHub Advanced Security有効化**:
+   - Settings > Security > Code security and analysis
+   - "GitHub Advanced Security" を有効化（パブリックリポジトリは無料）
 
 ---
 
-### 問題4: ビルドが期待通りに失敗しない
+## 🎯 次のステップ
 
-**症状**: ポリシー違反があるのにワークフローが成功してしまう
+✅ **S03完了後の推奨アクション**:
 
-**原因**: `continue-on-error` の使い方が間違っている
+1. **S04: IaCスキャンへ進む**
+   - [S04-iac-scanning.md](./S04-iac-scanning.md) を参照
+   - Terraformインフラコードのセキュリティスキャン検証
 
-**解決策**:
-```yaml
-# 正しい設定パターン
-- name: Run IaC Scan
-  id: iac_scan
-  run: wizcli iac scan ...
-  continue-on-error: true  # スキャンステップは継続
+2. **CI/CDパイプラインの改善**
+   - ポリシー違反時のビルド失敗動作をカスタマイズ
+   - Slackやメール通知の追加
+   - 自動修正PRの作成（Wiz Auto-Remediation）
 
-# 中間ステップ（SARIFアップロードなど）
-- name: Upload SARIF
-  if: always()
-  uses: github/codeql-action/upload-sarif@v3
-  ...
-
-# 最後に明示的にチェック
-- name: Check scan results
-  if: steps.iac_scan.outcome == 'failure'
-  run: |
-    echo "❌ Scan found violations"
-    exit 1  # ここでビルドを失敗させる
-```
-
----
-
-## 🎓 まとめ
-
-### このシナリオで検証できたこと
-
-✅ **自動セキュリティスキャン**: GitHub Actionsで自動的にIaC、Docker、依存関係をスキャン
-✅ **ポリシーベースのビルド制御**: セキュリティポリシー違反時にビルドを自動的に失敗させる
-✅ **GitHub Security統合**: SARIF形式でGitHub Securityタブと統合し、統一的なアラート管理
-✅ **SBOM生成**: ソフトウェアサプライチェーンの可視性を確保
-✅ **エビデンス保存**: スキャン結果をArtifactsとして保存し、監査証跡を確保
-
-### 主要なメリット
-
-| メリット | 説明 |
-|---------|------|
-| **シフトレフト** | 本番環境にデプロイする前に問題を検出 |
-| **自動化** | 手動スキャンの手間を削減、ヒューマンエラーを防止 |
-| **一元管理** | すべてのセキュリティアラートをGitHub Securityで管理 |
-| **トレーサビリティ** | コミット、ブランチ、ワークフローIDで結果を追跡 |
-
----
-
-## 🔄 次のステップ
-
-シナリオ3が完了したら、次のシナリオに進みます：
-
-- **[シナリオ4: IaCスキャン](./S04-iac-scanning.md)**: Terraformファイルの詳細なスキャンと修正
-- **[シナリオ5: シークレット検出](./S05-secret-detection.md)**: ハードコードされた認証情報の検出と防止
+3. **Phase 2への準備**
+   - AWS環境のセットアップ（ECS, ECR, RDS）
+   - Code-to-Cloudトレーサビリティの検証準備
 
 ---
 
 ## 📚 参考資料
 
-### Wiz公式ドキュメント
 - [Wiz CLI Documentation](https://docs.wiz.io/wiz-docs/docs/wiz-cli)
 - [GitHub Actions Integration](https://docs.wiz.io/wiz-docs/docs/github-actions-integration)
-- [SARIF Output Format](https://docs.wiz.io/wiz-docs/docs/sarif-output)
-
-### GitHub公式ドキュメント
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Code Scanning Documentation](https://docs.github.com/en/code-security/code-scanning)
-- [Encrypted Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
-
-### 業界標準
 - [SARIF Format Specification](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
-- [SBOM (Software Bill of Materials)](https://www.ntia.gov/sbom)
-- [CycloneDX SBOM Standard](https://cyclonedx.org/)
+- [GitHub Code Scanning](https://docs.github.com/en/code-security/code-scanning)
 
 ---
 
-**📝 注意事項**: このシナリオで使用するファイルには、意図的にセキュリティ脆弱性が含まれています。Wizの検出機能をテストするためのものであり、本番環境では絶対に使用しないでください。
-
-**💡 ヒント**: 再検証時は、新しいブランチを作成して検証を行うと、履歴を保ちながら複数回の検証が可能です（詳細は [BRANCH_MANAGEMENT_GUIDE.md](../guides/BRANCH_MANAGEMENT_GUIDE.md) を参照）。
+**✅ シナリオ3完了**: GitHub ActionsへのWiz CLI統合と、自動化されたセキュリティスキャンパイプラインの検証が完了しました。

@@ -14,6 +14,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 env:
   NODE_VERSION: '18'
   REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
@@ -100,6 +105,7 @@ jobs:
           wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
 
       - name: Dockerイメージスキャン
+        id: docker_scan
         run: |
           wizcli docker scan \
             --image taskflow-${{ matrix.component }}:${{ github.sha }} \
@@ -109,7 +115,35 @@ jobs:
             --tag "build-number=${{ github.run_number }}" \
             --tag "scan-type=container-image" \
             --dockerfile ./${{ matrix.component }}/Dockerfile \
+            --output docker-${{ matrix.component }}-results.sarif,sarif \
+            --output docker-${{ matrix.component }}-results.json,json \
             --policy-hits-only
+        continue-on-error: true
+
+      - name: SARIF結果をGitHub Securityにアップロード
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: docker-${{ matrix.component }}-results.sarif
+          category: wiz-docker-${{ matrix.component }}
+
+      - name: スキャン結果をArtifactとして保存
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-scan-results-${{ matrix.component }}-${{ github.sha }}
+          path: |
+            docker-${{ matrix.component }}-results.sarif
+            docker-${{ matrix.component }}-results.json
+
+      - name: スキャン結果の確認
+        if: steps.docker_scan.outcome == 'failure'
+        run: |
+          echo "❌ ${{ matrix.component }}のDockerイメージスキャンでポリシー違反を検出しました"
+          echo "📊 検出サマリー:"
+          cat docker-${{ matrix.component }}-results.json | jq '.summary' || echo "No summary available"
+          echo ""
+          echo "詳細はGitHub SecurityタブとWizコンソールで確認してください"
 
       - name: イメージタグ付けとECRプッシュ（mainブランチのみ）
         if: github.ref == 'refs/heads/main'

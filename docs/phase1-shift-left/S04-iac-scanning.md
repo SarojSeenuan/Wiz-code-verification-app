@@ -7,10 +7,11 @@ Infrastructure as Code（Terraform）の設定ミスをデプロイ前に検出�
 
 ### 検証内容
 - ✅ Terraformファイルのセキュリティ設定ミス検出
+- ✅ 脆弱な設定（vulnerable）とセキュアな設定（dev/prod）の比較
 - ✅ コンプライアンス基準（CIS、AWS Well-Architected）との照合
-- ✅ 具体的な修正ガイダンスの提供
 - ✅ VSCode拡張機能によるリアルタイムフィードバック
 - ✅ CI/CDパイプラインでの自動IaCスキャン
+- ✅ GitHub Security統合とSARIF形式レポート
 
 ---
 
@@ -18,11 +19,11 @@ Infrastructure as Code（Terraform）の設定ミスをデプロイ前に検出�
 
 | フェーズ | 所要時間 | 説明 |
 |---------|---------|------|
-| **初回セットアップ** | 45-60分 | Terraformファイル作成、ローカルスキャン、修正版作成 |
-| **検証作業** | 30-40分 | WizCloud確認、VSCode拡張確認、エビデンス収集 |
-| **再検証** | 15-20分 | 新しいブランチで同じIaCファイルをスキャン |
+| **初回セットアップ** | 30-40分 | 既存Terraformファイル確認、ワークフロー実行 |
+| **検証作業** | 20-30分 | WizCloud確認、VSCode拡張確認、エビデンス収集 |
+| **再検証** | 10-15分 | 新しいブランチで同じ検証を実施 |
 
-**💡 ヒント**: Terraformファイルは一度作成すれば再利用可能です。再検証時は新しいブランチにコピーするだけです。
+**💡 ヒント**: 既存のTerraformファイルとワークフローを使用するため、設定は最小限で済みます。
 
 ---
 
@@ -31,7 +32,7 @@ Infrastructure as Code（Terraform）の設定ミスをデプロイ前に検出�
 ### ✅ 必須要件
 - [x] **シナリオ1完了**: Wiz Service Accountが作成済み、Wiz CLIインストール済み
 - [x] **シナリオ2完了**: GitHubリポジトリが存在
-- [x] **シナリオ3完了**: GitHub Actionsワークフローの基本理解
+- [x] **シナリオ3完了**: GitHub Actionsワークフローの基本理解、Secretsが設定済み
 - [x] **Terraform**: Terraform 1.6以上がインストール済み
 - [x] **VSCode**: Wiz拡張機能がインストール済み（シナリオ1で実施）
 
@@ -44,8 +45,281 @@ code --version         # VSCode 1.80以上
 ```
 
 ### 🔑 必要な情報
-- Wiz Service Account認証情報（環境変数設定済み）
+- Wiz Service Account認証情報（シナリオ3でGitHub Secretsに設定済み）
 - GitHubリポジトリのURL
+
+---
+
+## 📁 プロジェクト構造の確認
+
+このシナリオでは、**既存の`taskflow-app`プロジェクト**のTerraform構成を使用します。
+
+### ディレクトリ構造
+
+```
+WizCodeVerification/
+└── taskflow-app/
+    ├── .github/
+    │   └── workflows/
+    │       └── S04-wiz-iac-scan.yml        ⭐ 既存のIaCスキャンワークフロー
+    └── terraform/
+        ├── modules/                         # 再利用可能なモジュール
+        │   ├── ecr/                        # ECRリポジトリ
+        │   ├── ecs/                        # ECS Fargate
+        │   ├── networking/                 # VPC, subnet, NAT, ALB
+        │   └── rds/                        # RDS PostgreSQL
+        └── environments/                    # 環境別設定
+            ├── dev/                        ⭐ セキュアな開発環境設定
+            │   ├── main.tf
+            │   ├── variables.tf
+            │   └── outputs.tf
+            ├── prod/                       ⭐ セキュアな本番環境設定
+            │   ├── main.tf
+            │   ├── variables.tf
+            │   └── outputs.tf
+            └── vulnerable/                 ⭐ 検証用の脆弱な設定
+                ├── main.tf
+                ├── variables.tf
+                └── outputs.tf
+```
+
+### 🎯 検証対象
+
+| 環境 | パス | 目的 | 期待される検出 |
+|------|------|------|--------------|
+| **vulnerable** | `terraform/environments/vulnerable/` | Wizの検出能力を検証 | CRITICAL 3件、HIGH 5件、MEDIUM 2件 |
+| **dev** | `terraform/environments/dev/` | セキュアな設定の確認 | 検出なし（ベストプラクティス準拠） |
+| **prod** | `terraform/environments/prod/` | セキュアな設定の確認 | 検出なし（ベストプラクティス準拠） |
+
+---
+
+## 🔧 手順1: 既存Terraformファイルの確認
+
+### 1.1 脆弱な設定の確認（vulnerable環境）
+
+既存の脆弱なTerraform設定を確認します：
+
+```bash
+# taskflow-appディレクトリに移動
+cd ~/WizCodeVerification/taskflow-app
+
+# 脆弱な設定ファイルを確認
+cat terraform/environments/vulnerable/main.tf
+```
+
+**意図的に含まれている脆弱性**:
+
+| 問題 | リソース | 重大度 | 設定 |
+|------|---------|--------|------|
+| **ハードコードパスワード** | `aws_db_instance.vulnerable_rds` | CRITICAL | `password = "hardcoded_password123"` |
+| **パブリックRDS** | `aws_db_instance.vulnerable_rds` | CRITICAL | `publicly_accessible = true` |
+| **全ポート開放** | `aws_security_group.vulnerable_sg` | CRITICAL | `cidr_blocks = ["0.0.0.0/0"]`, `from_port = 0` |
+| **RDS暗号化なし** | `aws_db_instance.vulnerable_rds` | HIGH | `storage_encrypted = false` |
+| **S3パブリックアクセス** | `aws_s3_bucket_public_access_block` | HIGH | `block_public_acls = false` |
+| **S3暗号化なし** | `aws_s3_bucket.vulnerable_bucket` | HIGH | 暗号化設定なし |
+| **EBS暗号化なし** | `aws_ebs_volume.vulnerable_ebs` | HIGH | `encrypted = false` |
+| **SSH/RDP開放** | `aws_security_group.vulnerable_sg` | HIGH | port 22, 3389を`0.0.0.0/0`に開放 |
+| **S3ログなし** | `aws_s3_bucket.vulnerable_bucket` | MEDIUM | ログ設定なし |
+| **RDSバックアップなし** | `aws_db_instance.vulnerable_rds` | MEDIUM | `backup_retention_period = 0` |
+
+**期待される検出結果（outputs.tfに記載）**:
+```bash
+# 検出結果サマリーを確認
+cat terraform/environments/vulnerable/outputs.tf
+```
+
+### 1.2 セキュアな設定の確認（dev環境）
+
+ベストプラクティスに準拠したセキュアな設定を確認します：
+
+```bash
+# dev環境の設定を確認
+cat terraform/environments/dev/main.tf
+```
+
+**セキュアな設定のポイント**:
+
+| 設定項目 | セキュア設定 | 説明 |
+|---------|------------|------|
+| **RDS暗号化** | `storage_encrypted = true` | データ暗号化有効 |
+| **RDS非公開** | `publicly_accessible = false` | プライベートサブネットに配置 |
+| **パスワード管理** | AWS Secrets Managerまたは変数 | ハードコード禁止 |
+| **S3暗号化** | `aws_s3_bucket_server_side_encryption_configuration` | AES256またはKMS暗号化 |
+| **S3ブロック** | `block_public_acls = true` | パブリックアクセスブロック |
+| **セキュリティグループ** | 最小権限の原則 | 必要なポート・送信元のみ許可 |
+| **ログ記録** | CloudWatch Logs有効 | 監査証跡の記録 |
+| **バックアップ** | `backup_retention_period = 7` | 自動バックアップ有効 |
+
+### 1.3 Terraformモジュール構造の確認
+
+再利用可能なモジュールを確認：
+
+```bash
+# モジュール一覧を確認
+ls -la terraform/modules/
+
+# ECRモジュールの例
+cat terraform/modules/ecr/main.tf
+```
+
+**モジュールの利点**:
+- ✅ DRY原則（Don't Repeat Yourself）
+- ✅ セキュアな設定を標準化
+- ✅ 環境間で一貫性を保つ
+- ✅ 変更を一箇所で管理
+
+---
+
+## 🔧 手順2: VSCode拡張機能でのリアルタイムスキャン
+
+### 2.1 VSCodeでTerraformファイルを開く
+
+```bash
+# VSCodeでvulnerable環境のファイルを開く
+code terraform/environments/vulnerable/main.tf
+```
+
+### 2.2 Wiz拡張機能によるリアルタイム検出の確認
+
+VSCodeでファイルを開くと、Wiz拡張機能が自動的にスキャンを開始します：
+
+**確認ポイント**:
+
+1. **問題の下線表示**:
+   - ハードコードされたパスワード（line 53）に赤い波線
+   - `publicly_accessible = true`（line 54）に赤い波線
+   - セキュリティグループの`0.0.0.0/0`（line 118）に赤い波線
+
+2. **ホバー時の詳細情報**:
+   ```
+   ⚠️  [Wiz] Hardcoded database password detected
+   Severity: CRITICAL
+
+   Hardcoded passwords in code can be extracted from version control.
+   Use AWS Secrets Manager or environment variables instead.
+
+   Recommendation:
+   - Store password in AWS Secrets Manager
+   - Reference via data source: data.aws_secretsmanager_secret_version
+   ```
+
+3. **Problems パネル**:
+   - VSCodeの下部「Problems」タブを開く
+   - Wizが検出した全問題が一覧表示される
+   - 重大度（CRITICAL/HIGH/MEDIUM）でフィルタリング可能
+
+### 2.3 セキュアな設定との比較
+
+```bash
+# dev環境のファイルを開いて比較
+code terraform/environments/dev/main.tf
+```
+
+**確認ポイント**:
+- ✅ Problems パネルに警告が表示されない
+- ✅ セキュアな設定では下線が表示されない
+- ✅ Wizがベストプラクティスを認識している
+
+---
+
+## 🔧 手順3: Wiz CLI によるローカルスキャン
+
+### 3.1 vulnerable環境のスキャン
+
+```bash
+# vulnerable環境をスキャン
+wizcli iac scan \
+  --path terraform/environments/vulnerable \
+  --name "vulnerable-env-local-scan" \
+  --tag "environment=vulnerable" \
+  --tag "scan-type=local" \
+  --policy-hits-only
+
+# 期待される出力:
+# ✗ Found 10 policy violations
+# CRITICAL: 3
+# HIGH: 5
+# MEDIUM: 2
+```
+
+### 3.2 dev環境のスキャン
+
+```bash
+# dev環境をスキャン（セキュアな設定）
+wizcli iac scan \
+  --path terraform/environments/dev \
+  --name "dev-env-local-scan" \
+  --tag "environment=dev" \
+  --tag "scan-type=local" \
+  --policy-hits-only
+
+# 期待される出力:
+# ✓ No policy violations found
+```
+
+### 3.3 全体スキャン
+
+```bash
+# Terraformディレクトリ全体をスキャン
+wizcli iac scan \
+  --path terraform \
+  --name "terraform-full-scan" \
+  --output iac-scan-results.json,json \
+  --policy-hits-only
+
+# JSON結果の確認
+cat iac-scan-results.json | jq '.issues[] | {severity, resource, message}'
+```
+
+---
+
+## 🔧 手順4: 既存ワークフローの確認
+
+### 4.1 IaCスキャンワークフローの内容確認
+
+既存のワークフローファイルを確認します：
+
+```bash
+# ワークフローファイルを確認
+cat .github/workflows/S04-wiz-iac-scan.yml
+```
+
+**ワークフローの主要な構成**:
+
+1. **トリガー設定**:
+   ```yaml
+   on:
+     push:
+       branches: [main, develop]
+       paths: ['terraform/**']
+     pull_request:
+       branches: [main]
+       paths: ['terraform/**']
+   ```
+   - Terraformファイル変更時のみトリガー
+   - パフォーマンス最適化
+
+2. **スキャンジョブ**:
+   - Terraform全体スキャン
+   - Dev環境スキャン
+   - Prod環境スキャン
+   - Vulnerable環境スキャン（SARIF出力）
+
+3. **検証ジョブ**:
+   - Terraform format check
+   - Terraform validate
+   - Terraform plan（PRの場合）
+
+### 4.2 ワークフローの重要な機能
+
+| 機能 | 説明 | ファイル内の位置 |
+|------|------|-----------------|
+| **permissions設定** | `security-events: write`でGitHub Security統合 | line 21-24 |
+| **paths フィルター** | terraform/**変更時のみトリガー | line 13-14, 18-19 |
+| **SARIF出力** | vulnerable環境のみSARIF生成 | line 94-96 |
+| **GitHub Security統合** | SARIFアップロードでアラート表示 | line 99-104 |
+| **Artifact保存** | スキャン結果を保存 | line 107-113 |
+| **continue-on-error** | スキャン失敗でもワークフロー継続 | line 97 |
 
 ---
 
@@ -54,810 +328,470 @@ code --version         # VSCode 1.80以上
 IaCスキャン検証専用のブランチを作成します：
 
 ```bash
-# 既存リポジトリに移動
-cd ~/wiz-code-verification/scenario-01
+# taskflow-appディレクトリに移動
+cd ~/WizCodeVerification/taskflow-app
 
 # 検証用ブランチを作成
-git checkout -b scenario-04-iac-scanning
-
-# Terraformディレクトリを作成
-mkdir -p terraform/vulnerable terraform/secure
+git checkout -b scenario-04-iac-verification-$(date +%Y%m%d)
 
 # ブランチの確認
 git branch
-# * scenario-04-iac-scanning
-#   scenario-03-cicd-integration
-#   main
 ```
-
-**💡 ヒント**: このシナリオでは`terraform/vulnerable`（脆弱な設定）と`terraform/secure`（修正済み設定）の2つのディレクトリを作成して比較します。
 
 ---
 
-## 🔧 手順1: 脆弱なTerraformコードの作成
+## 🔧 手順5: ワークフローのトリガーとテスト
 
-### 1.1 意図的に問題のあるTerraformコードを作成
+### 5.1 Terraformファイルの軽微な変更
 
 ```bash
-cat > terraform/vulnerable/main.tf << 'EOF'
-# 意図的に脆弱な設定を含むTerraform構成
-# 本番環境では絶対に使用しないでください
+# vulnerable環境のREADME追加（ワークフロートリガー用）
+cat > terraform/environments/vulnerable/README.md << 'EOF'
+# Vulnerable Terraform Configuration
 
-terraform {
-  required_version = ">= 1.6"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
+**⚠️ 警告**: このディレクトリは検証目的で意図的に脆弱な設定を含んでいます。
 
-provider "aws" {
-  region = "us-east-1"
-}
+## 期待される検出結果
 
-# 問題1: パブリックアクセス可能なRDS（CRITICAL）
-resource "aws_db_instance" "vulnerable_rds" {
-  identifier           = "vulnerable-rds"
-  engine               = "postgres"
-  instance_class       = "db.t3.micro"
-  allocated_storage    = 20
-  username             = "admin"
-  password             = "hardcoded_password123"  # ハードコードされたパスワード
-  publicly_accessible  = true                     # パブリックアクセス有効
-  skip_final_snapshot  = true
-  storage_encrypted    = false                    # 暗号化なし
+- CRITICAL: 3件
+- HIGH: 5件
+- MEDIUM: 2件
 
-  tags = {
-    Name        = "Vulnerable RDS"
-    Environment = "test"
-  }
-}
-
-# 問題2: パブリックアクセスブロックが無効なS3バケット（HIGH）
-resource "aws_s3_bucket" "vulnerable_bucket" {
-  bucket = "my-vulnerable-bucket-${random_string.suffix.result}"
-
-  tags = {
-    Name        = "Vulnerable S3 Bucket"
-    Environment = "test"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "vulnerable_pab" {
-  bucket = aws_s3_bucket.vulnerable_bucket.id
-
-  block_public_acls       = false  # パブリックACL許可
-  block_public_policy     = false  # パブリックポリシー許可
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-# 問題3: 過度に開放されたセキュリティグループ（CRITICAL）
-resource "aws_security_group" "vulnerable_sg" {
-  name        = "vulnerable-sg"
-  description = "Overly permissive security group"
-
-  ingress {
-    description = "Allow all traffic from anywhere"
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # 全世界に開放
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "Vulnerable Security Group"
-    Environment = "test"
-  }
-}
-
-# 問題4: ログが無効化されたS3バケット（MEDIUM）
-# aws_s3_bucket_logging が定義されていない
-
-# 問題5: 暗号化が無効なS3バケット（HIGH）
-# aws_s3_bucket_server_side_encryption_configuration が定義されていない
-
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
+詳細は `outputs.tf` を参照してください。
 EOF
+
+# 変更を確認
+git status
 ```
 
-### 1.2 Terraform設定の初期化
+### 5.2 コミットとプッシュ
 
 ```bash
-cd terraform/vulnerable
+# 変更をステージング
+git add terraform/environments/vulnerable/README.md
 
-# Terraformの初期化（プロバイダーのダウンロード）
-terraform init
+# コミット
+git commit -m "S04: Add vulnerable environment documentation
 
-# 構文チェック
-terraform validate
-# Success! The configuration is valid.
+- Add README for vulnerable Terraform configuration
+- Trigger IaC scan workflow
+- Verify Wiz detection capabilities"
+
+# GitHubにプッシュ（mainブランチにマージしてトリガー）
+git push -u origin $(git branch --show-current)
+
+# プルリクエストを作成（これによりワークフローがトリガーされる）
+gh pr create \
+  --title "S04: IaC Scanning Verification" \
+  --body "Terraform IaC security scanning test for scenario S04" \
+  --base main
 ```
 
-**💡 重要**: `terraform apply` は実行しません。スキャンのみ実施します。実際にAWSリソースをデプロイすると課金が発生します。
+### 5.3 GitHub Actionsの実行確認
+
+```bash
+# ワークフローの実行状況を確認
+gh run list --workflow="S04-wiz-iac-scan.yml" --limit 5
+
+# 最新のワークフローをウォッチ
+gh run watch
+```
+
+**期待される実行ログ**:
+
+```
+terraform-iac-scan
+├─ ✅ コードチェックアウト
+├─ ✅ Terraformセットアップ
+├─ ✅ Terraformフォーマットチェック
+├─ ✅ Wiz CLIダウンロード
+├─ ✅ Wiz認証
+├─ ✅ Terraform全体スキャン (3 environments scanned)
+├─ ✅ Terraform Dev環境スキャン (No violations)
+├─ ✅ Terraform Prod環境スキャン (No violations)
+├─ ❌ Terraform Vulnerable環境スキャン (10 violations found)
+├─ 📤 SARIF結果をGitHub Securityにアップロード
+└─ 📦 スキャン結果をArtifactとして保存
+
+terraform-validation
+├─ ✅ Terraformセットアップ
+├─ ✅ Terraform Init (dev)
+├─ ✅ Terraform Validate (dev)
+├─ ✅ Terraform Init (prod)
+└─ ✅ Terraform Validate (prod)
+```
 
 ---
 
-## 🔧 手順2: Wiz CLIによるローカルスキャン
+## 🔧 手順6: GitHub Securityタブでの結果確認
 
-### 2.1 基本的なIaCスキャンの実行
+### 6.1 Code Scanningアラートの確認
 
-```bash
-# プロジェクトルートに戻る
-cd ~/wiz-code-verification/scenario-01
+1. GitHubリポジトリを開く
+2. **Security** タブをクリック
+3. **Code scanning** を選択
+4. フィルター: `is:open branch:scenario-04-iac-verification-YYYYMMDD`
 
-# 認証確認（シナリオ1で設定済み）
-wizcli auth status
+**期待される結果**:
 
-# IaCスキャンの実行
-wizcli iac scan --path ./terraform/vulnerable
+| Severity | Rule | File | Line |
+|----------|------|------|------|
+| CRITICAL | Hardcoded database password | terraform/environments/vulnerable/main.tf | 53 |
+| CRITICAL | Database publicly accessible | terraform/environments/vulnerable/main.tf | 54 |
+| CRITICAL | Security group allows all traffic | terraform/environments/vulnerable/main.tf | 118 |
+| HIGH | RDS storage not encrypted | terraform/environments/vulnerable/main.tf | 56 |
+| HIGH | S3 bucket allows public access | terraform/environments/vulnerable/main.tf | 89-92 |
 
-# 期待される出力:
-# ✅ Authentication successful
-# 🔍 Scanning IaC files in ./terraform/vulnerable
-# ❌ Found 7 issues (3 CRITICAL, 3 HIGH, 1 MEDIUM)
+### 6.2 アラートの詳細確認
+
+アラートをクリックして詳細を確認：
+
 ```
+⚠️  CRITICAL: Hardcoded database password detected
 
-### 2.2 詳細なスキャン結果の出力
+Description:
+The RDS instance 'vulnerable_rds' contains a hardcoded password.
+Hardcoded credentials in code can be extracted from version control
+history and pose a significant security risk.
 
-```bash
-# JSON形式で詳細出力
-wizcli iac scan \
-  --path ./terraform/vulnerable \
-  --output iac-scan-results.json,json
+Location:
+File: terraform/environments/vulnerable/main.tf
+Line: 53
+Code:
+  password = "hardcoded_password123"  # ハードコードされたパスワード
 
-# SARIF形式でGitHub Security用に出力
-wizcli iac scan \
-  --path ./terraform/vulnerable \
-  --output iac-scan-results.sarif,sarif
+Recommendation:
+Use AWS Secrets Manager or Parameter Store to manage database passwords:
 
-# ポリシー違反のみ表示
-wizcli iac scan \
-  --path ./terraform/vulnerable \
-  --policy "Default IaC policy" \
-  --policy-hits-only \
-  --severity HIGH,CRITICAL
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "rds-password"
+}
+
+data "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = aws_secretsmanager_secret.db_password.id
+}
+
+resource "aws_db_instance" "secure_rds" {
+  password = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # ... other settings
+}
+
+CIS Benchmark: 2.3.1
+AWS Well-Architected: SEC03-BP02
 ```
-
-### 2.3 スキャン結果の確認
-
-```bash
-# JSON結果をjqで整形して確認
-cat iac-scan-results.json | jq '.findings[] | {
-  severity: .severity,
-  title: .title,
-  file: .location.file,
-  line: .location.line,
-  recommendation: .recommendation
-}'
-```
-
-**期待される検出項目**:
-
-| 問題 | Severity | ファイル | 説明 |
-|------|----------|---------|------|
-| ハードコードされたDBパスワード | CRITICAL | main.tf:26 | パスワードがコードに直接記述されている |
-| パブリックアクセス可能なRDS | HIGH | main.tf:27 | RDSがインターネットからアクセス可能 |
-| RDS暗号化なし | HIGH | main.tf:29 | ストレージ暗号化が無効 |
-| S3パブリックアクセスブロック無効 | HIGH | main.tf:45-48 | S3バケットが公開される可能性 |
-| セキュリティグループ全開放 | CRITICAL | main.tf:57-61 | 0.0.0.0/0からすべてのポートが開放 |
-| S3暗号化なし | HIGH | main.tf | 暗号化設定が存在しない |
-| S3ログなし | MEDIUM | main.tf | アクセスログが無効 |
 
 ---
 
-## 🔧 手順3: WizCloudコンソールでの結果確認
+## 🔧 手順7: WizCloudコンソールでの結果確認
 
-### 3.1 Code Scansページでの確認
+### 7.1 Code Scansページでの確認
 
 1. **WizCloudにログイン**: https://app.wiz.io/
 2. **Code** > **Scans** に移動
-3. リポジトリ名で検索: `scenario-01`
+3. リポジトリ名で検索: `taskflow-app`
+4. フィルター: `Scan Type = IaC`
 
 **確認ポイント**:
-```
-最新のIaCスキャン結果が表示されている
-├─ Scan Type: IaC (Terraform)
-├─ Issues Found: 7
-├─ Critical: 3
-├─ High: 3
-└─ Medium: 1
-```
 
-### 3.2 Code Issuesページでの詳細確認
+| 項目 | 期待される値 | 確認 |
+|------|------------|------|
+| **Scan Type** | IaC | ✅ |
+| **Environment Tag** | vulnerable / dev / prod | ✅ |
+| **Branch** | scenario-04-iac-verification-YYYYMMDD | ✅ |
+| **Files Scanned** | ~10-15 Terraformファイル | ✅ |
+| **Policy Hits (vulnerable)** | 10件 | ✅ |
+| **Policy Hits (dev/prod)** | 0件 | ✅ |
+
+### 7.2 Issuesの詳細確認
 
 ```
 Code > Issues に移動
-├─ フィルター: "Repository = scenario-01" & "Severity = CRITICAL"
+├─ フィルター: Repository = taskflow-app, Type = IaC
 └─ 検出されたIssuesの例:
-    ├─ [IaC] Hardcoded database password
-    │   ├─ File: terraform/vulnerable/main.tf:26
+    ├─ [IaC] RDS instance publicly accessible
+    │   ├─ Severity: CRITICAL
     │   ├─ Resource: aws_db_instance.vulnerable_rds
-    │   └─ Recommendation: Use AWS Secrets Manager or Parameter Store
+    │   ├─ File: terraform/environments/vulnerable/main.tf:46
+    │   ├─ Line: publicly_accessible = true
+    │   ├─ CIS Benchmark: 2.3.1
+    │   └─ Recommendation: Set publicly_accessible = false
     │
     ├─ [IaC] Security group allows unrestricted ingress
-    │   ├─ File: terraform/vulnerable/main.tf:57-61
+    │   ├─ Severity: CRITICAL
     │   ├─ Resource: aws_security_group.vulnerable_sg
-    │   └─ Recommendation: Restrict source CIDR to specific IP ranges
+    │   ├─ File: terraform/environments/vulnerable/main.tf:108
+    │   ├─ Rule violated: 0.0.0.0/0 on all ports
+    │   └─ Recommendation: Restrict to specific IPs and ports
     │
-    └─ [IaC] S3 bucket public access not blocked
-        ├─ File: terraform/vulnerable/main.tf:45-48
-        ├─ Resource: aws_s3_bucket_public_access_block.vulnerable_pab
-        └─ Recommendation: Set all public access block settings to true
+    └─ [IaC] S3 bucket does not have encryption enabled
+        ├─ Severity: HIGH
+        ├─ Resource: aws_s3_bucket.vulnerable_bucket
+        ├─ File: terraform/environments/vulnerable/main.tf:75
+        ├─ Missing: aws_s3_bucket_server_side_encryption_configuration
+        └─ Recommendation: Enable AES256 or KMS encryption
 ```
 
----
+### 7.3 Compliance Mappingの確認
 
-## 🔧 手順4: VSCode拡張機能でのリアルタイムスキャン
+WizCloudで検出結果とコンプライアンス基準の対応を確認：
 
-### 4.1 VSCodeでのTerraformファイルの確認
-
-```bash
-# VSCodeでプロジェクトを開く
-code ~/wiz-code-verification/scenario-01
 ```
-
-### 4.2 Wiz拡張機能での問題確認
-
-1. `terraform/vulnerable/main.tf` をVSCodeで開く
-2. Wiz拡張機能が自動的にスキャンを開始
-3. 問題のある行に波線（squiggly line）が表示される
-
-**期待される表示**:
+Code > Issues > [Issue Detail]
+└─ Compliance Mappings:
+    ├─ CIS AWS Foundations Benchmark v1.4.0
+    │   └─ 2.3.1: Ensure RDS instances are not publicly accessible
+    ├─ AWS Well-Architected Framework
+    │   └─ SEC03-BP02: Encrypt data at rest
+    ├─ PCI DSS v4.0
+    │   └─ Requirement 8: Identify users and authenticate access
+    └─ NIST CSF
+        └─ PR.AC-4: Access permissions are managed
 ```
-Line 26: password = "hardcoded_password123"
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         🔴 Hardcoded secret detected
-         Severity: CRITICAL
-
-         Recommendation:
-         Store sensitive values in AWS Secrets Manager:
-
-         data "aws_secretsmanager_secret_version" "db_password" {
-           secret_id = "rds-password"
-         }
-
-         password = jsondecode(data.aws_secretsmanager_secret_version.db_password.secret_string)["password"]
-```
-
-4. **Problems パネル**（Ctrl+Shift+M）で全問題を確認
-5. 各問題をクリックして該当行にジャンプ
-
----
-
-## 🔧 手順5: 修正済みTerraformコードの作成
-
-### 5.1 セキュアな設定の作成
-
-```bash
-cat > terraform/secure/main.tf << 'EOF'
-# セキュアな設定のTerraform構成
-# ベストプラクティスに従った実装
-
-terraform {
-  required_version = ">= 1.6"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-# 修正1: セキュアなRDS（パスワード管理、暗号化、プライベート配置）
-resource "aws_db_instance" "secure_rds" {
-  identifier           = "secure-rds"
-  engine               = "postgres"
-  instance_class       = "db.t3.micro"
-  allocated_storage    = 20
-  username             = "admin"
-  password             = random_password.db_password.result  # ランダムパスワード生成
-  publicly_accessible  = false                                # プライベート配置
-  skip_final_snapshot  = true
-  storage_encrypted    = true                                 # 暗号化有効
-  kms_key_id          = aws_kms_key.rds.arn                  # KMS暗号化キー
-
-  # バックアップ設定
-  backup_retention_period = 7
-
-  # 監査ログ有効化
-  enabled_cloudwatch_logs_exports = ["postgresql"]
-
-  tags = {
-    Name        = "Secure RDS"
-    Environment = "test"
-  }
-}
-
-# パスワード生成
-resource "random_password" "db_password" {
-  length  = 32
-  special = true
-}
-
-# Secrets Managerにパスワードを保存
-resource "aws_secretsmanager_secret" "db_password" {
-  name                    = "rds-password-${random_string.suffix.result}"
-  recovery_window_in_days = 7
-}
-
-resource "aws_secretsmanager_secret_version" "db_password" {
-  secret_id     = aws_secretsmanager_secret.db_password.id
-  secret_string = jsonencode({
-    username = aws_db_instance.secure_rds.username
-    password = random_password.db_password.result
-  })
-}
-
-# RDS暗号化用KMSキー
-resource "aws_kms_key" "rds" {
-  description             = "KMS key for RDS encryption"
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
-
-  tags = {
-    Name = "RDS Encryption Key"
-  }
-}
-
-# 修正2: セキュアなS3バケット（暗号化、パブリックアクセスブロック、ログ有効）
-resource "aws_s3_bucket" "secure_bucket" {
-  bucket = "my-secure-bucket-${random_string.suffix.result}"
-
-  tags = {
-    Name        = "Secure S3 Bucket"
-    Environment = "test"
-  }
-}
-
-# S3暗号化設定
-resource "aws_s3_bucket_server_side_encryption_configuration" "secure_sse" {
-  bucket = aws_s3_bucket.secure_bucket.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.s3.arn
-    }
-  }
-}
-
-# パブリックアクセスブロック（すべて有効）
-resource "aws_s3_bucket_public_access_block" "secure_pab" {
-  bucket = aws_s3_bucket.secure_bucket.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# S3アクセスログ
-resource "aws_s3_bucket_logging" "secure_logging" {
-  bucket = aws_s3_bucket.secure_bucket.id
-
-  target_bucket = aws_s3_bucket.logs.id
-  target_prefix = "s3-access-logs/"
-}
-
-# ログ用バケット
-resource "aws_s3_bucket" "logs" {
-  bucket = "logs-bucket-${random_string.suffix.result}"
-
-  tags = {
-    Name = "Logs Bucket"
-  }
-}
-
-# S3暗号化用KMSキー
-resource "aws_kms_key" "s3" {
-  description             = "KMS key for S3 encryption"
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
-
-  tags = {
-    Name = "S3 Encryption Key"
-  }
-}
-
-# 修正3: セキュアなセキュリティグループ（最小権限原則）
-resource "aws_security_group" "secure_sg" {
-  name        = "secure-sg"
-  description = "Properly configured security group with least privilege"
-
-  # 特定のIPレンジからのHTTPSのみ許可
-  ingress {
-    description = "HTTPS from corporate network only"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]  # 内部ネットワークのみ
-  }
-
-  # Egressも必要最小限に制限
-  egress {
-    description = "HTTPS to internet for updates"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "Secure Security Group"
-    Environment = "test"
-  }
-}
-
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-EOF
-```
-
-### 5.2 修正版のスキャン
-
-```bash
-# 修正版のスキャン
-wizcli iac scan --path ./terraform/secure
-
-# 期待される出力:
-# ✅ Authentication successful
-# 🔍 Scanning IaC files in ./terraform/secure
-# ✅ No critical or high severity issues found
-# ℹ️  Found 0 issues (0 CRITICAL, 0 HIGH, 0 MEDIUM)
-```
-
-### 5.3 修正前後の比較
-
-```bash
-# スキャン結果の比較スクリプト
-cat > compare_iac_scans.sh << 'EOF'
-#!/bin/bash
-
-echo "========================================="
-echo "Vulnerable Configuration Scan Results"
-echo "========================================="
-wizcli iac scan --path ./terraform/vulnerable --severity HIGH,CRITICAL
-
-echo ""
-echo "========================================="
-echo "Secure Configuration Scan Results"
-echo "========================================="
-wizcli iac scan --path ./terraform/secure --severity HIGH,CRITICAL
-
-echo ""
-echo "✅ Comparison complete!"
-EOF
-
-chmod +x compare_iac_scans.sh
-./compare_iac_scans.sh
-```
-
----
-
-## 🔧 手順6: GitHub Actionsでの自動IaCスキャン
-
-### 6.1 IaCスキャン専用ワークフローの作成（オプション）
-
-```bash
-cat > .github/workflows/S04-wiz-iac-scan.yml << 'EOF'
-name: S04 - IaC Security Scan
-
-on:
-  pull_request:
-    paths:
-      - 'terraform/**'
-  push:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-
-permissions:
-  contents: read
-  security-events: write
-
-jobs:
-  iac-scan:
-    name: Terraform Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Wiz CLI
-        run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
-
-      - name: Authenticate with Wiz
-        run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
-
-      - name: Scan Terraform configurations
-        id: iac_scan
-        run: |
-          wizcli iac scan \
-            --path ./terraform \
-            --output terraform-scan.sarif,sarif \
-            --output terraform-scan.json,json \
-            --policy "Default IaC policy" \
-            --policy-hits-only
-        continue-on-error: true
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: terraform-scan.sarif
-          category: terraform-security
-
-      - name: Upload scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: terraform-scan-results
-          path: |
-            terraform-scan.sarif
-            terraform-scan.json
-
-      - name: Check for critical issues
-        if: steps.iac_scan.outcome == 'failure'
-        run: |
-          echo "❌ IaC scan found policy violations"
-          cat terraform-scan.json | jq '.summary'
-          exit 1
-EOF
-```
-
-**💡 ヒント**: シナリオ3で作成した`wiz-iac-scan.yml`がある場合は、このステップはスキップできます。
 
 ---
 
 ## ✅ 検証チェックリスト
 
-以下のチェックリストを使用して、シナリオ4の検証が完了したことを確認してください：
-
-### Terraformファイル作成
-- [ ] `terraform/vulnerable/main.tf` が作成され、意図的な脆弱性が含まれている
-- [ ] `terraform init` が成功し、プロバイダーがダウンロードされた
-- [ ] `terraform validate` でTerraform構文が正しいことを確認
-
-### ローカルIaCスキャン
-- [ ] `wizcli iac scan` が正常に実行される
-- [ ] 7つ程度の問題が検出される（CRITICAL 3件、HIGH 3件、MEDIUM 1件）
-- [ ] JSON形式とSARIF形式で結果が出力される
-- [ ] 各問題に具体的な修正提案が含まれている
-
-### WizCloud確認
-- [ ] Code > Scansページに最新のIaCスキャン結果が表示される
-- [ ] Code > Issuesページで個別の問題詳細を確認できる
-- [ ] ファイル名と行番号が正しく記録されている
-- [ ] Recommendationに具体的な修正方法が記載されている
-
 ### VSCode拡張機能
-- [ ] VSCodeでTerraformファイルを開くと自動スキャンが実行される
-- [ ] 問題のある行に波線（squiggly line）が表示される
-- [ ] Problemsパネルですべての問題が一覧表示される
-- [ ] 問題をクリックすると該当行にジャンプする
 
-### 修正済み設定
-- [ ] `terraform/secure/main.tf` が作成され、すべての問題が修正されている
-- [ ] 修正版のスキャンでCRITICAL/HIGH問題が0件になる
-- [ ] 修正前後の比較スクリプトが正常に動作する
+- [ ] **リアルタイム検出が動作する**
+  - [ ] vulnerableファイルで問題に下線が表示される
+  - [ ] ホバーで詳細情報が表示される
+  - [ ] Problemsパネルに全問題が表示される
 
-### GitHub Actions統合（オプション）
-- [ ] IaCスキャンワークフローが作成されている
-- [ ] Terraformファイルの変更時にワークフローが自動実行される
-- [ ] GitHub SecurityタブにIaC問題がアップロードされる
+- [ ] **セキュアな設定で警告なし**
+  - [ ] dev/prodファイルで警告が表示されない
+  - [ ] ベストプラクティス準拠を確認
+
+### Wiz CLI ローカルスキャン
+
+- [ ] **vulnerable環境で検出あり**
+  - [ ] CRITICAL: 3件
+  - [ ] HIGH: 5件
+  - [ ] MEDIUM: 2件
+
+- [ ] **dev/prod環境で検出なし**
+  - [ ] セキュアな設定が正しく認識される
+
+### GitHub Actions統合
+
+- [ ] **ワークフローが正常に実行される**
+  - [ ] Terraformファイル変更時にトリガー
+  - [ ] 4つのスキャンジョブが実行される
+  - [ ] 検証ジョブ（format, validate, plan）が成功
+
+- [ ] **SARIF アップロードが成功**
+  - [ ] vulnerable環境のSARIFが生成される
+  - [ ] GitHub Securityタブにアラート表示される
+
+### GitHub Security統合
+
+- [ ] **アラートが正しく表示される**
+  - [ ] 10件のアラートが表示される
+  - [ ] 重大度が正しく分類される
+  - [ ] ファイル・行番号が正確
+
+- [ ] **修正推奨事項が表示される**
+  - [ ] 具体的なコード例が提示される
+  - [ ] CIS Benchmark/AWS Well-Architected参照が表示される
+
+### WizCloud連携
+
+- [ ] **Code Scansに結果が表示される**
+  - [ ] 3つの環境すべてがスキャンされる
+  - [ ] タグ情報が正しく記録される
+
+- [ ] **Code Issuesで詳細確認可能**
+  - [ ] Compliance mappingが表示される
+  - [ ] 修正ガイダンスが表示される
 
 ---
 
 ## 📸 エビデンス収集
 
-以下の画面をスクリーンショットとして保存し、検証レポートに添付してください：
+以下のスクリーンショットを取得してエビデンスとして保存します：
 
-### 必須エビデンス（6-8枚）
+### 1. VSCode拡張機能（必須）
+```
+evidence/phase1/S04/
+├── 01_vscode_vulnerable_main_tf.png
+│   └── vulnerableファイルの問題下線表示
+├── 02_vscode_hover_detail.png
+│   └── ホバー時の詳細情報
+├── 03_vscode_problems_panel.png
+│   └── Problemsパネルの全警告一覧
+└── 04_vscode_dev_secure.png
+    └── dev環境ファイル（警告なし）
+```
 
-| # | スクリーンショット | 取得タイミング | ファイル名例 |
-|---|------------------|--------------|--------------|
-| 1 | **ローカルIaCスキャン結果** | `wizcli iac scan`実行後 | `s04-01-local-scan-results.png` |
-|   | ターミナルに表示される検出結果の全体 |  |  |
-| 2 | **JSON結果の詳細** | `jq`でJSON整形後 | `s04-02-json-details.png` |
-|   | 問題の詳細とRecommendation |  |  |
-| 3 | **WizCloud Scans画面** | WizCloudログイン後 | `s04-03-wizcloud-scans.png` |
-|   | IaCスキャン結果が表示されている |  |  |
-| 4 | **WizCloud Issues詳細** | Issuesページで問題クリック後 | `s04-04-wizcloud-issue-detail.png` |
-|   | CRITICALまたはHIGH問題の詳細画面 |  |  |
-| 5 | **VSCode Wiz拡張機能** | Terraformファイルを開いた状態 | `s04-05-vscode-inline-warnings.png` |
-|   | 波線と問題の説明が表示されている |  |  |
-| 6 | **VSCode Problemsパネル** | Ctrl+Shift+M押下後 | `s04-06-vscode-problems-panel.png` |
-|   | すべての問題が一覧表示 |  |  |
-| 7 | **修正版スキャン結果** | セキュア版スキャン後 | `s04-07-secure-scan-clean.png` |
-|   | 問題が0件になったことを示す |  |  |
-| 8 | **修正前後の比較** | 比較スクリプト実行後 | `s04-08-before-after-comparison.png` |
-|   | 脆弱版と修正版の結果を並べて表示 |  |  |
+### 2. Wiz CLI ローカルスキャン（必須）
+```
+evidence/phase1/S04/
+├── 05_cli_scan_vulnerable.png
+│   └── vulnerable環境スキャン結果（10件検出）
+└── 06_cli_scan_dev.png
+    └── dev環境スキャン結果（検出なし）
+```
 
-### オプションエビデンス
-- [ ] GitHub Actions IaCスキャンワークフローのログ
-- [ ] GitHub Security タブのIaC問題表示
-- [ ] Terraformファイルのコード比較（diff表示）
+### 3. GitHub Actions（必須）
+```
+evidence/phase1/S04/
+├── 07_github_actions_workflow_list.png
+│   └── S04ワークフロー実行一覧
+├── 08_iac_scan_job_logs.png
+│   └── IaCスキャンジョブログ
+└── 09_terraform_validation_job.png
+    └── Terraform検証ジョブログ
+```
+
+### 4. GitHub Security（必須）
+```
+evidence/phase1/S04/
+├── 10_github_security_alerts_list.png
+│   └── Code scanningアラート一覧
+├── 11_alert_detail_hardcoded_password.png
+│   └── ハードコードパスワードアラート詳細
+└── 12_alert_detail_public_rds.png
+    └── パブリックRDSアラート詳細
+```
+
+### 5. WizCloud Console（必須）
+```
+evidence/phase1/S04/
+├── 13_wizcloud_iac_scans_list.png
+│   └── Code > Scans、IaCスキャン一覧
+├── 14_scan_detail_vulnerable.png
+│   └── vulnerable環境スキャン詳細
+├── 15_code_issues_list.png
+│   └── Code > Issues、IaC問題一覧
+└── 16_issue_detail_compliance.png
+    └── Issue詳細とCompliance mapping
+```
 
 ---
 
 ## 🔧 トラブルシューティング
 
-### 問題1: IaCスキャンが開始されない
+### ❌ 問題1: Terraformフォーマットチェック失敗
 
 **症状**:
 ```
-Error: Failed to scan IaC files
-Authentication required
+Error: terraform fmt -check failed
+Files not formatted: terraform/environments/vulnerable/main.tf
 ```
 
-**原因**: Wiz CLIの認証が期限切れ、または環境変数が未設定
-
-**解決策**:
+**原因と対処**:
 ```bash
-# 認証状態を確認
-wizcli auth status
+# Terraformファイルを自動フォーマット
+terraform fmt -recursive terraform/
 
-# 再認証
-export WIZ_CLIENT_ID="your_client_id"
-export WIZ_CLIENT_SECRET="your_client_secret"
-wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
-
-# 環境変数の確認（最初の5文字のみ表示）
-echo "Client ID: ${WIZ_CLIENT_ID:0:5}..."
+# 変更をコミット
+git add terraform/
+git commit -m "Format Terraform files"
+git push
 ```
 
----
-
-### 問題2: VSCodeでリアルタイムスキャンが動作しない
-
-**症状**: Terraformファイルを開いても問題が表示されない
-
-**原因**: Wiz拡張機能が無効、または認証が必要
-
-**解決策**:
-```bash
-# 1. Wiz拡張機能の状態を確認
-# VSCode: Extensions > Wiz > Enabled になっているか確認
-
-# 2. Wiz拡張機能の出力ログを確認
-# VSCode: View > Output > Wiz を選択してログを確認
-
-# 3. VSCodeからWiz認証
-# Command Palette (Ctrl+Shift+P) > "Wiz: Authenticate"
-
-# 4. VSCodeを再起動
-```
-
----
-
-### 問題3: Terraformの初期化に失敗する
+### ❌ 問題2: VSCode拡張機能で問題が表示されない
 
 **症状**:
 ```
-Error: Failed to install provider
-terraform init failed
+vulnerableファイルを開いても下線が表示されない
 ```
 
-**原因**: ネットワーク問題、またはTerraformバージョンの不一致
+**原因と対処**:
+1. **Wiz拡張機能の有効化確認**:
+   - VSCode左下のWizアイコンをクリック
+   - "Sign in to Wiz" をクリックして認証
 
-**解決策**:
+2. **拡張機能の再起動**:
+   - Command Palette（Ctrl+Shift+P / Cmd+Shift+P）
+   - "Developer: Reload Window"
+
+3. **ファイルタイプの確認**:
+   - VSCode右下の言語モードが "Terraform" になっているか確認
+   - HashiCorp Terraform拡張機能もインストール推奨
+
+### ❌ 問題3: ワークフローがTerraform変更でトリガーされない
+
+**症状**:
+```
+Terraformファイルを変更してプッシュしてもワークフローが実行されない
+```
+
+**原因と対処**:
+1. **paths フィルターの確認**:
+   ```yaml
+   # ワークフローファイル確認
+   on:
+     push:
+       paths:
+         - 'terraform/**'  # ← このパスと一致するか確認
+   ```
+
+2. **変更ファイルパスの確認**:
+   ```bash
+   # 最後のコミットで変更されたファイルを確認
+   git show --name-only HEAD
+
+   # terraform/で始まるパスであることを確認
+   ```
+
+3. **mainブランチへのマージ**:
+   ```bash
+   # ブランチがmainまたはdevelopにマージされているか確認
+   git checkout main
+   git merge scenario-04-iac-verification-20251203
+   git push origin main
+   ```
+
+### ❌ 問題4: Terraform validate エラー
+
+**症状**:
+```
+Error: terraform validate failed
+Error: Missing required argument
+```
+
+**原因と対処**:
 ```bash
-# 1. Terraformバージョンを確認
-terraform --version
-# Terraform v1.6.0以上であることを確認
+# ローカルでvalidateテスト
+cd terraform/environments/dev
+terraform init -backend=false
+terraform validate
 
-# 2. プロバイダーキャッシュをクリア
-rm -rf .terraform .terraform.lock.hcl
-
-# 3. 再度初期化
-terraform init
-
-# 4. 特定のミラーを使用（企業プロキシ環境の場合）
-terraform init -plugin-dir=/path/to/plugins
+# エラーメッセージを確認し、必要な変数を追加
+# variables.tf や terraform.tfvars を修正
 ```
 
 ---
 
-### 問題4: 問題が検出されない、または少なすぎる
+## 🎯 次のステップ
 
-**症状**: 脆弱なTerraformコードをスキャンしても問題が検出されない
+✅ **S04完了後の推奨アクション**:
 
-**原因**: ポリシー設定、またはスキャン対象の指定ミス
+1. **S05: シークレット検出へ進む**
+   - [S05-secret-detection.md](./S05-secret-detection.md) を参照
+   - ハードコードされた認証情報の検出検証
 
-**解決策**:
-```bash
-# 1. ファイルが正しく配置されているか確認
-ls -la terraform/vulnerable/
-# main.tf が存在することを確認
+2. **IaCスキャンの活用**
+   - PRマージ時のブランチ保護ルール設定
+   - Terraformモジュールのセキュリティ標準化
+   - 定期的なコンプライアンススキャン実施
 
-# 2. すべての重大度で再スキャン
-wizcli iac scan --path ./terraform/vulnerable --severity ALL
-
-# 3. ポリシーを指定せずにスキャン
-wizcli iac scan --path ./terraform/vulnerable
-
-# 4. デバッグモードでスキャン
-wizcli iac scan --path ./terraform/vulnerable --verbose
-```
-
----
-
-## 🎓 まとめ
-
-### このシナリオで検証できたこと
-
-✅ **IaC設定ミスの自動検出**: Terraformファイルのセキュリティ問題を自動的に検出
-✅ **コンプライアンス照合**: CIS、AWS Well-Architected基準との照合
-✅ **具体的な修正ガイダンス**: 各問題に対する具体的な修正方法の提示
-✅ **リアルタイムフィードバック**: VSCode拡張機能によるコーディング中の問題検出
-✅ **シフトレフト実現**: デプロイ前にインフラのセキュリティリスクを検出・修正
-
-### 主要なメリット
-
-| メリット | 説明 |
-|---------|------|
-| **早期検出** | クラウドリソースをデプロイする前に問題を発見 |
-| **コスト削減** | 本番環境での設定ミス修正コストを削減 |
-| **学習効果** | 開発者がセキュアなIaCベストプラクティスを学習 |
-| **コンプライアンス** | 業界標準への自動準拠確認 |
-
----
-
-## 🔄 次のステップ
-
-シナリオ4が完了したら、次のシナリオに進みます：
-
-- **[シナリオ5: シークレット検出](./S05-secret-detection.md)**: ハードコードされた認証情報の検出と防止
-- **[シナリオ6: SBOM生成と追跡](../phase2-code-to-cloud/S06-sbom-tracking.md)**: ソフトウェア部品表の生成と依存関係追跡
+3. **Phase 2への準備**
+   - 実際のAWS環境へのTerraformデプロイ
+   - IaC Drift検出（S09）の準備
+   - デプロイ済みリソースとコードの差分検出
 
 ---
 
 ## 📚 参考資料
 
-### Wiz公式ドキュメント
-- [Wiz IaCスキャンガイド](https://docs.wiz.io/wiz-docs/docs/iac-scanning)
-- [Terraform IaCスキャンのベストプラクティス](https://docs.wiz.io/wiz-docs/docs/terraform-best-practices)
-- [Wiz IaCポリシー設定](https://docs.wiz.io/wiz-docs/docs/iac-policies)
-
-### AWS公式ドキュメント
-- [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
-- [AWS Security Best Practices](https://docs.aws.amazon.com/security/)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-
-### セキュリティ基準
+- [Wiz IaC Scanning Documentation](https://docs.wiz.io/wiz-docs/docs/iac-scanning)
 - [CIS AWS Foundations Benchmark](https://www.cisecurity.org/benchmark/amazon_web_services)
-- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
-- [PCI DSS Cloud Security Guidelines](https://www.pcisecuritystandards.org/)
+- [AWS Well-Architected Framework - Security Pillar](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html)
+- [Terraform Security Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/index.html)
 
 ---
 
-**📝 注意事項**: このシナリオで使用するTerraformコードには、意図的にセキュリティ脆弱性が含まれています。Wizの検出機能をテストするためのものであり、`terraform apply` で実際にAWSにデプロイしないでください。
-
-**💡 ヒント**: 再検証時は、新しいブランチを作成してTerraformファイルをコピーすると、履歴を保ちながら複数回の検証が可能です（詳細は [BRANCH_MANAGEMENT_GUIDE.md](../guides/BRANCH_MANAGEMENT_GUIDE.md) を参照）。
+**✅ シナリオ4完了**: Terraform IaCのセキュリティスキャンと、デプロイ前の設定ミス検出の検証が完了しました。

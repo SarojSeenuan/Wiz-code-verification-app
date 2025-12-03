@@ -8,6 +8,7 @@
 > **📖 次に読むべきドキュメント**
 > - Windows環境の方 → [WINDOWS_SETUP_GUIDE.md](./WINDOWS_SETUP_GUIDE.md)
 > - その他の方 → [ENVIRONMENT_VARIABLES_GUIDE.md](./ENVIRONMENT_VARIABLES_GUIDE.md)
+> - AWS環境デプロイ（Phase 2-3）→ [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)
 
 > **🔙 ガイド一覧に戻る**
 > [ガイド一覧](./README.md)
@@ -86,9 +87,15 @@
 - ✅ GitHub アカウント
 - ✅ Wiz認証情報
 - ✅ ローカル開発環境（Node.js, Docker）
-- ✅ AWS環境（ECS/EKS, RDS, ECR）
+- ✅ AWS環境（ECS Fargate, RDS, ECR, VPC, ALB）
 
 **すべてのセクションを実施**
+
+**🚀 AWS環境のデプロイ手順**:
+- 詳細は [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md) を参照してください
+- リージョン: 東京（ap-northeast-1）
+- 検証期間: 1週間（想定コスト: 約$26）
+- 必要リソース: ECS Fargate, ECR, RDS PostgreSQL, VPC, NAT Gateway, ALB
 
 ---
 
