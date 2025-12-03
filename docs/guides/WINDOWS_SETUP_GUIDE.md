@@ -325,19 +325,19 @@ Get-ExecutionPolicy
 ### PowerShellスクリプトの実行
 
 ```powershell
-# スクリプトの実行
-cd taskflow-app\scripts\setup
-.\init-database.ps1
+# プロジェクトルートから環境変数検証
+cd WizCodeVerification
+.\scripts\validate-env.ps1 phase1
 
-# 引数を渡す
-.\run-wiz-scan.ps1 -ScanType "s03"
+# Wizスキャン実行
+.\scripts\run-wiz-scan.ps1 -ScanType dir -Path ./backend
 ```
 
 ### 一時的にバイパスして実行
 
 ```powershell
 # 実行ポリシーを一時的にバイパス
-powershell -ExecutionPolicy Bypass -File .\init-database.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\validate-env.ps1 -Phase phase1
 ```
 
 ---
@@ -348,7 +348,7 @@ powershell -ExecutionPolicy Bypass -File .\init-database.ps1
 
 **エラーメッセージ**:
 ```
-.\init-database.ps1 : このシステムではスクリプトの実行が無効になっているため、ファイル .\init-database.ps1 を読み込むことができません。
+.\scripts\validate-env.ps1 : このシステムではスクリプトの実行が無効になっているため、ファイル .\scripts\validate-env.ps1 を読み込むことができません。
 ```
 
 **解決方法**:

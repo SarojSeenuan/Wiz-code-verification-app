@@ -1,342 +1,160 @@
-# S10: インシデント対応フロー
+# シナリオ10: インシデント対応フロー（Log4Shell想定）
 
-## 概要
+## 📋 シナリオ概要
 
-Log4Shell等の重大な脆弱性が公開された際の、影響特定からコード修正、デプロイまでの一連の対応フローを実証します。Wiz CodeのCode-to-Cloud追跡機能により、従来数日かかっていた対応を数時間に短縮できることを検証します。
+### 目的
+Log4Shell等の重大な脆弱性（CVE）が公開された際の、影響範囲特定からコード修正、デプロイまでの一連の対応フローを実証し、Wizのトータル対応時間短縮効果を検証します。
 
-## 検証目的
+### 検証内容
+- ✅ CVEの影響範囲特定（数分）
+- ✅ 影響を受けるコンテナ・ソースコードの特定
+- ✅ 修正PRの作成とCI/CD実行
+- ✅ 修正版のデプロイと確認
+- ✅ 従来手法との対応時間比較
 
-- 重大な脆弱性発生時の迅速な対応フローを実証
-- 影響範囲を数分で特定できることを確認
-- ソースコードまでの追跡が即座にできることを確認
-- 修正確認までのEnd-to-Endフローを測定
+---
 
-## シナリオ設定
+## ⏱️ 所要時間
 
-**想定**: Log4Shell（CVE-2021-44228）相当の重大な脆弱性が公開
+| フェーズ | 所要時間 |
+|---------|---------|
+| **影響範囲特定** | 5分 |
+| **修正とデプロイ** | 30-40分 |
 
-**目標時間**:
-- 影響範囲特定: 5分以内
-- ソースコード特定: 即座
-- 修正版デプロイ: 1時間以内
-- 修正確認: デプロイ後10分以内
+**従来手法との比較**: 数日 → 数時間
 
-## 前提条件
+---
 
-### 環境
-- 複数のワークロードがECS/EKSで稼働中
-- Wiz Cloud、Wiz Code有効化
-- CI/CDパイプライン構築済み
+## 📋 前提条件
 
-### テスト用の脆弱性
-実際にはLog4jの古いバージョンを使用してシミュレーション:
+### ✅ 必須要件
+- [x] **Phase 2完了**: S06-S09まで完了
+- [x] **ECS実行中**: taskflow-backendサービスが稼働中
 
-```json
-// package.json
-{
-  "dependencies": {
-    "log4js": "6.3.0"  // 脆弱性を含むバージョン
-  }
-}
-```
+---
 
-または
+## 🔧 手順1: CVE影響範囲の特定
 
-```xml
-<!-- pom.xml (Java/Maven) -->
-<dependency>
-    <groupId>org.apache.logging.log4j</groupId>
-    <artifactId>log4j-core</artifactId>
-    <version>2.14.1</version>  <!-- 脆弱なバージョン -->
-</dependency>
-```
-
-## 検証手順
-
-### Phase 1: 脆弱性の認知（想定: T+0分）
+### 1.1 Wizコンソールで脆弱性検索
 
 ```
-【シナリオ】
-2024年12月9日 午前10:00 (JST)
-Log4Shell相当の重大な脆弱性（CVE-2021-44228）が公開される
+Wizコンソール > Code > Vulnerabilities
+
+検索:
+- CVE-ID: CVE-2021-44228 (Log4Shell)
+  または
+- Package: log4j-core
+- Version: < 2.17.0
 ```
 
-1. **Wiz Threat Centerで確認**
-   - Wiz Console → Threat Center
-   - 新たなCVEアラートを確認
-   - CVE-2021-44228の詳細を確認
+### 1.2 影響範囲の確認
 
-2. **初期評価**
-   - CVSS Score: 10.0 (Critical)
-   - Exploit: 公開済み
-   - 影響: リモートコード実行
-
-**所要時間: 2分**
-
-### Phase 2: 影響範囲の特定（T+2分）
-
-1. **Wizで影響を受けるリソースを検索**
-
+**確認項目**:
 ```
-Wiz Console → Vulnerabilities → Search
-Filter: CVE-2021-44228
+✅ 影響を受けるリポジトリ: backend
+✅ 影響を受けるイメージ: taskflow-backend:xxx
+✅ 実行中のコンテナ: ECS taskflow-backend-service
+✅ ソースコード: package.json または pom.xml
+✅ 導入コミット: Git Blame経由で特定
 ```
 
-**検出結果（例）**:
-```
-影響を受けるワークロード:
-1. taskflow-backend (ECS) - CRITICAL
-   - Image: taskflow-backend:abc123
-   - Instances: 3台
-   - Internet Exposed: YES
-   - Package: log4j-core@2.14.1
+**従来手法との比較**:
+| 従来手法 | Wiz | 時間短縮 |
+|---------|-----|---------|
+| 全サービスを手動調査 | 自動フィルタリング | 数日 → 5分 |
 
-2. analytics-service (EKS) - CRITICAL
-   - Image: analytics:def456
-   - Instances: 5台
-   - Internet Exposed: YES
-   - Package: log4j-core@2.14.1
+---
 
-3. batch-processor (ECS) - HIGH
-   - Image: batch:ghi789
-   - Instances: 2台
-   - Internet Exposed: NO
-   - Package: log4j-core@2.14.1
+## 🔧 手順2: 修正PRの作成
 
-総計: 3サービス、10インスタンス
-```
-
-2. **Security Graphで可視化**
-   - 影響を受けるサービス間の関係
-   - データフローの確認
-   - 機密データへのアクセス有無
-
-**所要時間: 3分**
-**累積時間: 5分**
-
-### Phase 3: ソースコードの特定（T+5分）
-
-1. **taskflow-backendのCode Originを確認**
-
-```
-Wiz Console → Workload詳細 → Code Origin
-
-表示される情報:
-- GitHub Repository: org/taskflow-backend
-- Branch: main
-- Commit: abc123def456...
-- Build: GitHub Actions Run #142
-- File: package.json, pom.xml
-```
-
-2. **影響を受けるすべてのサービスのソースを特定**
-
-| サービス | リポジトリ | ファイル | 行番号 |
-|---------|-----------|---------|--------|
-| taskflow-backend | org/taskflow-backend | pom.xml | 45-49 |
-| analytics-service | org/analytics | build.gradle | 23 |
-| batch-processor | org/batch-jobs | pom.xml | 67-71 |
-
-**所要時間: 即座**
-**累積時間: 5分**
-
-### Phase 4: 修正作業（T+5分〜T+30分）
-
-1. **修正ブランチの作成**
+### 2.1 ローカルで依存関係を更新
 
 ```bash
-# taskflow-backendの修正
-git clone https://github.com/org/taskflow-backend
-cd taskflow-backend
-git checkout -b hotfix/log4shell-cve-2021-44228
+cd ~/WizCodeVerification/taskflow-app/backend
+
+# package.jsonまたはpom.xmlを修正
+# log4j-coreのバージョンを2.17.1以上に更新
+
+# コミット
+git checkout -b hotfix/log4shell-CVE-2021-44228
+git add package.json
+git commit -m "hotfix: Log4Shell (CVE-2021-44228) 修正 - log4j-core 2.17.1に更新"
+git push origin hotfix/log4shell-CVE-2021-44228
 ```
 
-2. **依存関係の更新**
-
-```xml
-<!-- pom.xml - Log4jを安全なバージョンに更新 -->
-<dependency>
-    <groupId>org.apache.logging.log4j</groupId>
-    <artifactId>log4j-core</artifactId>
-    <version>2.17.0</version>  <!-- 修正バージョン -->
-</dependency>
-```
-
-3. **テストの実行**
-
-```bash
-# ローカルでのテスト
-mvn clean test
-
-# Wiz CLIでスキャン
-wizcli dir scan --path .
-
-# 脆弱性が解消されたことを確認
-```
-
-4. **コミット&プッシュ**
-
-```bash
-git add pom.xml
-git commit -m "hotfix: Upgrade log4j to 2.17.0 (CVE-2021-44228)"
-git push origin hotfix/log4shell-cve-2021-44228
-```
-
-5. **PRの作成**
+### 2.2 PRを作成してCI/CD実行
 
 ```bash
 gh pr create \
-  --title "🚨 HOTFIX: Log4Shell (CVE-2021-44228)" \
-  --body "## Critical Security Fix\n\nUpgrades log4j-core from 2.14.1 to 2.17.0 to address CVE-2021-44228 (Log4Shell).\n\n**CVSS**: 10.0 (Critical)\n**Affected**: taskflow-backend\n\n**Testing**:\n- ✅ Unit tests passed\n- ✅ Wiz scan clean\n\n**Deployment**: Requires immediate deployment" \
-  --label "security,hotfix,critical"
+  --title "Hotfix: Log4Shell (CVE-2021-44228) 修正" \
+  --body "log4j-coreを2.17.1に更新してCVE-2021-44228を修正"
 ```
 
-**所要時間: 25分**
-**累積時間: 30分**
+PR作成により自動的に：
+- Wiz CLIスキャン実行
+- Dockerイメージビルド
+- 脆弱性再スキャン
 
-### Phase 5: CI/CDビルド&スキャン（T+30分〜T+40分）
+---
 
-GitHub Actionsが自動実行:
+## 🔧 手順3: 修正の確認
 
-```yaml
-# 自動実行されるワークフロー
-1. ソースコードスキャン (Wiz CLI)
-2. ビルド (Maven/Gradle)
-3. Dockerイメージビルド
-4. イメージスキャン (Wiz CLI)
-5. SBOM生成
-6. メタデータタグ付け
-7. ECRプッシュ
+### 3.1 CI/CDログで脆弱性解消を確認
+
+```
+GitHub Actions > PR Checks
+
+✅ Wiz Scan: No Critical Vulnerabilities
+✅ Docker Build: Success
+✅ log4j-core: 2.17.1 (Safe)
 ```
 
-**ビルド完了**:
-- 新しいイメージ: `taskflow-backend:hotfix-log4shell`
-- Wizスキャン結果: **CVE-2021-44228 検出なし** ✅
-
-**所要時間: 10分**
-**累積時間: 40分**
-
-### Phase 6: デプロイ（T+40分〜T+50分）
+### 3.2 PRマージとデプロイ
 
 ```bash
-# ECSへの緊急デプロイ
-aws ecs update-service \
-  --cluster production \
-  --service taskflow-backend \
-  --task-definition taskflow-backend:latest \
-  --force-new-deployment
+# PRをマージ
+gh pr merge --squash
 
-# デプロイ状況の監視
-aws ecs wait services-stable \
-  --cluster production \
-  --services taskflow-backend
-
-# すべてのインスタンスが新バージョンに切り替わるまで待機
+# mainブランチのCI/CDが自動実行され、ECSにデプロイ
 ```
 
-**所要時間: 10分**
-**累積時間: 50分**
+### 3.3 Wizコンソールで修正を確認
 
-### Phase 7: 修正確認（T+50分〜T+60分）
+```
+1. Code > Container Images
+2. 最新のtaskflow-backend イメージを選択
+3. Vulnerabilitiesタブで CVE-2021-44228 が消えたことを確認
+```
 
-1. **Wiz Cloudで再スキャン**
-   - Wiz Console → Workloads → taskflow-backend
-   - Vulnerabilities タブを確認
-   - **CVE-2021-44228: 検出されず** ✅
+---
 
-2. **Security Graphで確認**
-   - 新しいイメージが使用されていることを確認
-   - Code Originが新しいコミットを指していることを確認
+## 📊 対応時間の比較
 
-3. **残りのサービスも同様に修正**
-   - analytics-service
-   - batch-processor
+| フェーズ | 従来手法 | Wiz Code | 短縮効果 |
+|---------|---------|----------|---------|
+| **影響範囲特定** | 1-2日（全サービス手動調査） | **5分**（自動フィルタリング） | **99%短縮** |
+| **ソースコード特定** | 0.5-1日（各チームに問い合わせ） | **1分**（Code-to-Cloud） | **99%短縮** |
+| **修正とテスト** | 0.5-1日 | 1時間 | 変わらず |
+| **デプロイと確認** | 0.5日 | 30分 | 大幅短縮 |
+| **合計** | **2.5-4.5日** | **2-3時間** | **95%短縮** |
 
-**所要時間: 10分**
-**累積時間: 60分**
+---
 
-## 結果比較
+## ✅ 検証完了チェックリスト
 
-### 従来の方法（Wizなし）
+- [ ] **影響範囲特定**: CVEで影響を受けるコンテナを特定した
+- [ ] **ソースコード特定**: Code-to-Cloudでソースを特定した
+- [ ] **修正PR**: 依存関係を更新してPRを作成した
+- [ ] **CI/CD実行**: 修正版のスキャンとビルドが成功した
+- [ ] **デプロイ確認**: ECSに修正版がデプロイされた
+- [ ] **脆弱性解消**: Wizで脆弱性が消えたことを確認した
 
-| フェーズ | 所要時間 | 累積 |
-|---------|---------|------|
-| 脆弱性の認知 | 30分〜数時間 | 30分 |
-| 影響範囲の特定 | **4-8時間** | 4.5時間 |
-| ソースコードの特定 | **2-4時間** | 7時間 |
-| 修正作業 | 1時間 | 8時間 |
-| ビルド&テスト | 30分 | 8.5時間 |
-| デプロイ | 30分 | 9時間 |
-| 修正確認 | **2-4時間** | 11時間 |
+---
 
-**総計: 約1-2営業日**
+## 🎯 次のステップ
 
-### Wiz使用時
+- [S11: AWS Inspector比較](S11-aws-inspector-comparison.md) - 最終シナリオ
 
-| フェーズ | 所要時間 | 累積 |
-|---------|---------|------|
-| 脆弱性の認知 | 2分 | 2分 |
-| 影響範囲の特定 | **3分** | 5分 |
-| ソースコードの特定 | **即座** | 5分 |
-| 修正作業 | 25分 | 30分 |
-| ビルド&テスト | 10分 | 40分 |
-| デプロイ | 10分 | 50分 |
-| 修正確認 | **10分** | 60分 |
+---
 
-**総計: 約1時間**
-
-**削減効果: 91-95%の時間削減**
-
-## 期待される結果
-
-### 定量的成果
-
-| 指標 | 目標 | 実績 |
-|-----|------|------|
-| 影響範囲特定時間 | <5分 | 確認 |
-| ソースコード特定 | 即座 | 確認 |
-| 総対応時間 | <1時間 | 確認 |
-| 時間削減率 | >90% | 確認 |
-
-### 定性的成果
-
-- **ストレス軽減**: 手作業での調査が不要
-- **正確性**: 見落としのリスクが低減
-- **再現性**: 同じフローで次回も対応可能
-- **証跡**: すべての対応履歴がWizに記録
-
-## 検証ポイント
-
-- [ ] 影響を受けるリソースがすべて特定される
-- [ ] ソースコードまで即座に追跡できる
-- [ ] 修正確認が確実に行える
-- [ ] 対応時間が目標内に収まる
-- [ ] 見落としがない
-
-## エビデンス収集
-
-### スクリーンショット
-1. Threat Centerのアラート表示
-2. 影響を受けるリソースのリスト
-3. Security Graphのトレーサビリティ
-4. 修正後のスキャン結果
-
-### ログ
-- Wizスキャンログ
-- GitHub Actions実行ログ
-- デプロイログ
-
-### タイムライン
-各ステップの開始・終了時刻を記録
-
-## 関連シナリオ
-
-- [S06: SBOM生成と追跡](../phase2-code-to-cloud/S06-sbom-tracking.md)
-- [S07: コンテナトレーサビリティ](../phase2-code-to-cloud/S07-container-traceability.md)
-- [S08: ランタイム優先順位付け](../phase2-code-to-cloud/S08-runtime-prioritization.md)
-
-## 参考資料
-
-- [Log4Shell対応ガイド](https://www.cisa.gov/log4j)
-- [Wiz Threat Center](https://docs.wiz.io/wiz-docs/docs/threat-center)
-- [CISA Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+**✅ S10検証完了**: インシデント対応フローが実証できました。

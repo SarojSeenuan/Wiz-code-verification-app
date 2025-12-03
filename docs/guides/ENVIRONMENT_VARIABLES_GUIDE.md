@@ -420,8 +420,8 @@ ls -la .env
 プロジェクトに含まれる検証スクリプトです。
 
 ```bash
-cd WizCodeVerification/taskflow-app/scripts
-./validate-env.sh
+cd WizCodeVerification
+./scripts/validate-env.sh phase1
 ```
 
 **出力例**:
@@ -441,8 +441,8 @@ Phase 2: AWS認証情報が必要 ✗
 ### validate-env.ps1（Windows PowerShell）
 
 ```powershell
-cd WizCodeVerification\taskflow-app\scripts
-.\validate-env.ps1
+cd WizCodeVerification
+.\scripts\validate-env.ps1 phase1
 ```
 
 ---

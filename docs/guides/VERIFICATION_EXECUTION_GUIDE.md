@@ -288,7 +288,8 @@ wizcli dir scan --path . --secret-scan-only
 # 2. 特定のディレクトリをスキャン
 wizcli dir scan --path ./taskflow-app/backend --secret-scan-only
 wizcli dir scan --path ./taskflow-app/frontend --secret-scan-only
-wizcli dir scan --path ./taskflow-app/scripts --secret-scan-only
+wizcli dir scan --path ./taskflow-app/terraform --secret-scan-only
+wizcli dir scan --path ./taskflow-app/k8s --secret-scan-only
 
 # 3. 結果をファイルに保存
 wizcli dir scan --path . --secret-scan-only --output-format json > secret-scan-results.json

@@ -1,514 +1,501 @@
-# S05: シークレット検出
+# シナリオ5: Wizシークレット検出とハードコード認証情報の自動スキャン
 
-## 概要
+## 📋 シナリオ概要
 
-ソースコードやコンテナイメージ内にハードコードされたシークレット（APIキー、パスワード、トークン等）を検出し、情報漏洩リスクを未然に防ぐことを検証します。
+### 目的
+ソースコード、IaC、設定ファイル、スクリプト内にハードコードされたシークレット（APIキー、パスワード、トークン等）をWizで自動検出し、情報漏洩リスクを未然に防ぐ能力を検証します。
 
-## 検証目的
+### 検証内容
+- ✅ IDE（VSCode拡張機能）でのリアルタイムシークレット検出
+- ✅ GitHub AppによるPR時のシークレット検出
+- ✅ Wiz CLIを使用したCI/CDパイプラインでの自動シークレットスキャン
+- ✅ 複数のシークレットタイプ（AWS Key、API Key、DB Password等）の検出
+- ✅ GitHub Secretsとの統合
+- ✅ False Positive評価
 
-- ハードコードされたシークレットを自動検出できることを確認
-- シークレットの種類（AWS Key、GitHub Token等）を正確に特定
-- IDE、VCS、CI/CDのすべての段階で検出されることを確認
-- False Positiveの評価
+---
 
-## 前提条件
+## ⏱️ 所要時間
 
-### 必須ツール
-- Visual Studio Code with Wiz拡張機能
-- Git
-- GitHub アカウント
-- Docker Desktop
-- Wiz CLI
+| フェーズ | 所要時間 | 説明 |
+|---------|---------|------|
+| **初回セットアップ** | 15-20分 | ワークフロー確認、シークレット検証 |
+| **検証作業** | 20-30分 | IDE・VCS・CI/CDでのシークレット検出確認 |
+| **再検証** | 10分 | 新しいブランチで同じ検証を実施する場合 |
 
-### 必要な権限
-- Wiz テナントへのアクセス
-- GitHub リポジトリへの書き込み権限
+**💡 ヒント**: 既存のワークフローファイルとテスト用シークレットを使用するため、設定は最小限で済みます。
 
-### 環境変数
+---
+
+## 📋 前提条件
+
+### ✅ 必須要件
+- [x] **シナリオ1完了**: Wiz VSCode拡張機能がインストール済み、Wiz Service Account作成済み
+- [x] **シナリオ2完了**: Wiz GitHub Appが接続済み
+- [x] **シナリオ3完了**: GitHub ActionsでWiz CLIが動作確認済み
+- [x] **Git環境**: Git 2.30以上がインストール済み
+
+### 📦 必要なツール
 ```bash
-export WIZ_CLIENT_ID="your_client_id"
-export WIZ_CLIENT_SECRET="your_client_secret"
+# ツールのバージョン確認
+git --version          # Git 2.30以上
+code --version         # VSCode 1.80以上
 ```
 
-## 検証手順
+### 🔑 必要な情報
+- Wiz Service Account Client ID（シナリオ1で取得）
+- Wiz Service Account Client Secret（シナリオ1で取得）
 
-### Step 1: テスト用シークレットの準備
+---
 
-**重要**: 以下はテスト用のダミーシークレットです。実際の認証情報は絶対に使用しないでください。
+## 📁 プロジェクト構造の確認
 
-```javascript
-// backend/src/config/vulnerable-config.js
+このシナリオでは、**既存の`taskflow-app`プロジェクト**を使用します。
 
-module.exports = {
-  // 問題1: AWSアクセスキーのハードコード
-  aws: {
-    accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
-    secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    region: 'us-east-1'
-  },
+### ディレクトリ構造
 
-  // 問題2: データベース接続文字列
-  database: {
-    host: 'production-db.example.com',
-    username: 'admin',
-    password: 'SuperSecretPassword123!',
-    database: 'app_production',
-    connectionString: 'postgresql://admin:SuperSecretPassword123!@production-db.example.com:5432/app_production'
-  },
-
-  // 問題3: APIキーのハードコード
-  thirdParty: {
-    stripeKey: 'sk_live_51H8xYzExample123456789abcdef',
-    githubToken: 'ghp_xyzExampleToken123456789abcdefghijkl',
-    sendGridApiKey: 'SG.xyzExampleSendGrid123456789.abcdefghijklmnopqrstuvwxyz',
-    slackWebhook: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX'
-  },
-
-  // 問題4: JWTシークレット
-  jwt: {
-    secret: 'this-is-my-super-secret-jwt-key-12345',
-    expiresIn: '7d'
-  },
-
-  // 問題5: OAuth クライアントシークレット
-  oauth: {
-    clientId: 'my-oauth-client-id',
-    clientSecret: 'my-oauth-client-secret-1234567890'
-  }
-};
+```
+WizCodeVerification/
+└── taskflow-app/
+    ├── .github/workflows/
+    │   └── S05-wiz-secret-scan.yml      ⭐ 既存のシークレットスキャンワークフロー
+    ├── backend/                         # バックエンド（シークレット検出対象）
+    │   ├── .env.example                # 環境変数テンプレート
+    │   └── src/
+    ├── frontend/                        # フロントエンド（シークレット検出対象）
+    │   └── .env.example
+    ├── terraform/                       # IaC（シークレット検出対象）
+    │   └── environments/
+    └── k8s/                            # Kubernetesマニフェスト
+        └── base/
 ```
 
-```python
-# backend/src/config/vulnerable_config.py
+### 🎯 検証対象
 
-# 問題6: Pythonファイル内のシークレット
-class Config:
-    # AWSシークレット
-    AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
-    AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+| コンポーネント | ファイルパス | 検出対象シークレット |
+|-------------|------------|-----------------|
+| **バックエンド** | `taskflow-app/backend/` | API Keys, DB Passwords, JWT Secrets |
+| **フロントエンド** | `taskflow-app/frontend/` | API Keys, OAuth Tokens |
+| **Terraform** | `taskflow-app/terraform/` | AWS Credentials, DB Passwords |
+| **Kubernetes** | `taskflow-app/k8s/` | Secret values in manifests |
+| **検証スクリプト** | `scripts/` | 環境変数テンプレート等（参考） |
 
-    # データベース接続
-    DATABASE_URL = "postgresql://admin:SuperSecret123@db.example.com:5432/mydb"
-    REDIS_PASSWORD = "redis-password-12345"
+---
 
-    # APIキー
-    OPENAI_API_KEY = "sk-proj-xyzExampleOpenAI123456789abcdefghijkl"
-    STRIPE_SECRET_KEY = "sk_live_51H8xYzExample123456789abcdef"
+## 🔧 手順1: 既存ワークフローの確認
 
-    # プライベートキー
-    SSH_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA1234567890abcdefghijklmnopqrstuvwxyz...
------END RSA PRIVATE KEY-----"""
-```
+### 1.1 ワークフローファイルの内容確認
 
-```dockerfile
-# Dockerfile.vulnerable
-
-FROM node:18
-
-# 問題7: Dockerfile内のシークレット
-ENV AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-ENV DATABASE_PASSWORD=SuperSecretDbPassword123
-ENV API_TOKEN=ghp_xyzExampleGitHubToken123456789
-
-WORKDIR /app
-COPY . .
-
-RUN npm install
-
-CMD ["npm", "start"]
-```
-
-```yaml
-# kubernetes/vulnerable-deployment.yaml
-
-apiVersion: v1
-kind: Secret
-metadata:
-  name: app-secrets
-type: Opaque
-stringData:
-  # 問題8: Kubernetes manifest内のハードコードされたシークレット
-  database-password: "SuperSecretPassword123"
-  api-key: "sk_live_51H8xYzExample123456789"
-  aws-access-key: "AKIAIOSFODNN7EXAMPLE"
-  aws-secret-key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-```
+既存のシークレットスキャンワークフローを確認します：
 
 ```bash
-# scripts/vulnerable-deploy.sh
+# taskflow-appディレクトリに移動
+cd ~/WizCodeVerification/taskflow-app
 
-#!/bin/bash
-
-# 問題9: シェルスクリプト内のシークレット
-export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
-export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-export GITHUB_TOKEN="ghp_xyzExampleGitHubToken123456789"
-
-# デプロイ処理
-echo "Deploying with hardcoded credentials..."
+# ワークフローファイルを確認
+cat .github/workflows/S05-wiz-secret-scan.yml
 ```
 
-### Step 2: VSCodeでのリアルタイム検出
+**ワークフローの主要な構成要素**:
 
-1. **VSCodeでファイルを開く**
-   ```bash
-   code backend/src/config/vulnerable-config.js
-   ```
+1. **4つのスキャンジョブ**:
+   - **secret-scan-source-code**: バックエンド・フロントエンドのシークレットスキャン
+   - **secret-scan-iac**: Terraformファイルのシークレットスキャン
+   - **secret-scan-k8s**: Kubernetesマニフェストのシークレットスキャン
+   - **secret-scan-scripts**: スクリプトファイルのシークレットスキャン
 
-2. **Wiz拡張機能が警告を表示することを確認**
-   - ファイルを開いた瞬間に警告が表示される
-   - 各シークレットに下線が引かれる
-   - ホバーで詳細情報が表示される
+2. **レポート生成ジョブ**:
+   - **generate-secret-report**: 全スキャン結果のサマリー生成
 
-3. **検出結果の確認**
-   - シークレットの種類（AWS Key、API Token等）
-   - 重大度（CRITICAL/HIGH）
-   - 推奨される修正方法
+3. **重要なオプション**:
+   - `--secret-scan-only`: シークレット検出のみに特化
+   - タグ付けによるスキャン結果の分類
 
-### Step 3: コミット前のローカルスキャン
+### 1.2 主要なWiz CLIコマンド
+
+**バックエンドシークレットスキャン例**:
+```bash
+wizcli dir scan \
+  --path ./backend \
+  --secret-scan-only \
+  --name "backend-secrets-$(git rev-parse --short HEAD)" \
+  --tag "component=backend" \
+  --tag "scan-type=secret-detection"
+```
+
+**検出対象のシークレットタイプ**:
+- AWS Access Keys (`AKIA...`)
+- GitHub Tokens (`ghp_...`, `github_pat_...`)
+- API Keys (`sk_live_...`, Stripe等）
+- データベースパスワード（接続文字列内）
+- JWT Secrets
+- Private Keys (PEM形式)
+- OAuth Client Secrets
+
+---
+
+## 🔧 手順2: IDE（VSCode）でのシークレット検出
+
+### 2.1 Wiz VSCode拡張機能での検出
+
+1. **VSCodeでプロジェクトを開く**:
+```bash
+cd ~/WizCodeVerification/taskflow-app
+code .
+```
+
+2. **テスト用ファイルを開く**:
+   - `backend/.env.example` を開く
+   - Wiz拡張機能が自動的にスキャンを開始
+
+3. **検出結果の確認**:
+   - VSCode下部の「PROBLEMS」タブを確認
+   - Wizアイコンから検出されたシークレットを確認
+   - 各シークレットの詳細（タイプ、リスクレベル）を確認
+
+**💡 ヒント**: `.env.example`ファイルには、ダミーのシークレットが含まれています。これらは検証用であり、実際の認証情報ではありません。
+
+### 2.2 リアルタイム検出のテスト
+
+新しいファイルを作成してシークレットをタイプしてみます（検証後は削除）:
 
 ```bash
-# Wiz CLI認証
+# テスト用ファイル作成
+cat > backend/test-secret.js << 'EOF'
+// テスト用: この後削除してください
+const AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";
+const AWS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+EOF
+```
+
+VSCodeで`backend/test-secret.js`を開き、Wiz拡張機能が即座に検出することを確認します。
+
+**検証後は必ず削除**:
+```bash
+rm backend/test-secret.js
+```
+
+---
+
+## 🔧 手順3: GitHub App（VCS統合）でのシークレット検出
+
+### 3.1 検証用ブランチの作成
+
+```bash
+cd ~/WizCodeVerification/taskflow-app
+
+# 検証用ブランチ作成
+git checkout -b verify/S05-secret-detection-$(date +%Y%m%d-%H%M%S)
+```
+
+### 3.2 テスト用シークレットの追加
+
+```bash
+# backend/.env.exampleにテスト用シークレットを追加
+cat >> backend/.env.example << 'EOF'
+
+# S05検証用: テスト用シークレット（本番環境では使用禁止）
+TEST_AWS_KEY=AKIAIOSFODNN7EXAMPLE
+TEST_STRIPE_KEY=sk_test_51HExample123456789abcdef
+EOF
+
+# コミット
+git add backend/.env.example
+git commit -m "S05検証: シークレット検出テスト用のダミーシークレット追加"
+```
+
+### 3.3 GitHubにプッシュしてPR作成
+
+```bash
+# リモートにプッシュ
+git push origin verify/S05-secret-detection-$(date +%Y%m%d-%H%M%S)
+
+# GitHub CLIでPR作成（オプション）
+gh pr create \
+  --title "S05検証: シークレット検出テスト" \
+  --body "Wizシークレット検出機能の検証用PR。テスト用ダミーシークレットを含みます。"
+```
+
+### 3.4 Wiz GitHub Appの検出結果を確認
+
+1. **GitHubでPRページを開く**
+2. **「Checks」タブを確認**:
+   - Wiz GitHub Appのスキャン結果を確認
+   - 検出されたシークレットの一覧を確認
+3. **「Files changed」タブ**:
+   - コード差分上にWizのコメントが表示されることを確認
+
+**期待される結果**:
+```
+❌ Secret detected: AWS Access Key
+   Location: backend/.env.example:4
+   Type: AWS Access Key
+   Risk: High
+```
+
+---
+
+## 🔧 手順4: CI/CDパイプラインでのシークレット検出
+
+### 4.1 GitHub Actionsワークフローの実行
+
+先ほどのPRまたはブランチプッシュにより、自動的にワークフローが実行されます。
+
+```bash
+# ワークフロー実行状況の確認（GitHub CLI）
+gh run list --workflow=S05-wiz-secret-scan.yml --limit 5
+```
+
+### 4.2 GitHub Actionsログの確認
+
+1. **GitHubリポジトリの「Actions」タブを開く**
+2. **「S05 - Wiz Secret Scan」ワークフローを選択**
+3. **各ジョブの実行結果を確認**:
+   - ✅ `secret-scan-source-code` - バックエンド・フロントエンドスキャン
+   - ✅ `secret-scan-iac` - Terraformスキャン
+   - ✅ `secret-scan-k8s` - Kubernetesマニフェストスキャン
+   - ✅ `secret-scan-scripts` - スクリプトスキャン
+   - ✅ `generate-secret-report` - レポート生成
+
+### 4.3 スキャン結果の詳細確認
+
+**バックエンドシークレットスキャンログ例**:
+```
+Running: wizcli dir scan --path ./backend --secret-scan-only ...
+
+🔍 Scanning for secrets in ./backend ...
+✅ Scan completed
+
+📊 Results:
+- Total secrets detected: 3
+- High severity: 2
+- Medium severity: 1
+
+🔴 Secrets found:
+1. AWS Access Key (AKIA...) in backend/.env.example:4
+2. Stripe API Key (sk_test...) in backend/.env.example:5
+3. Database Password in backend/docker-compose.yml:15
+
+詳細はWizコンソールで確認してください。
+```
+
+### 4.4 アーティファクトの確認
+
+GitHub Actionsページで、スキャンサマリーレポートをダウンロード:
+
+1. ワークフロー実行ページ下部の「Artifacts」セクション
+2. `secret-scan-summary-xxxxx` をダウンロード
+3. `secret-scan-summary.md` を開いて内容確認
+
+---
+
+## 🔧 手順5: Wizコンソールでの詳細確認
+
+### 5.1 Wizコンソールにログイン
+
+1. **https://app.wiz.io/ にアクセス**
+2. **Code > Secrets** に移動
+
+### 5.2 検出されたシークレットの確認
+
+**フィルター設定**:
+```
+Repository: <your-org>/WizCodeVerification
+Path: taskflow-app/backend/*
+```
+
+**確認項目**:
+- ✅ シークレットタイプ（AWS Key, API Key等）
+- ✅ 検出場所（ファイルパス、行番号）
+- ✅ リスクレベル（Critical, High, Medium）
+- ✅ 最初の検出日時
+- ✅ 修正ステータス
+
+### 5.3 False Positiveの評価
+
+1. **検出されたシークレットを確認**
+2. **False Positiveがあれば「Suppress」**:
+   - 理由を記載（例: "Test data only", "Example configuration"）
+   - 抑制ルールの作成
+3. **真のシークレット検出の精度を評価**
+
+---
+
+## 🔧 手順6: エビデンス収集
+
+### 6.1 スクリーンショット取得
+
+以下の画面のスクリーンショットを取得してください：
+
+1. **VSCode**:
+   - ✅ Wiz拡張機能がシークレットを検出している画面
+   - ✅ PROBLEMSタブのシークレット一覧
+
+2. **GitHub PR**:
+   - ✅ Wiz GitHub Appのチェック結果（Checksタブ）
+   - ✅ コード差分上のWizコメント（Files changedタブ）
+
+3. **GitHub Actions**:
+   - ✅ S05ワークフロー実行結果（全ジョブ成功/失敗）
+   - ✅ シークレットスキャンジョブの詳細ログ
+
+4. **Wizコンソール**:
+   - ✅ Code > Secrets の検出一覧画面
+   - ✅ 個別シークレットの詳細画面（ファイルパス、行番号表示）
+
+### 6.2 エビデンス保存
+
+```bash
+# evidenceディレクトリに保存
+mkdir -p ~/WizCodeVerification/evidence/phase1/S05-secret-detection
+cd ~/WizCodeVerification/evidence/phase1/S05-secret-detection
+
+# スクリーンショットをここに保存
+# - 01-vscode-secret-detection.png
+# - 02-github-pr-wiz-check.png
+# - 03-github-actions-workflow.png
+# - 04-wiz-console-secrets.png
+
+# レポートのダウンロード
+# GitHub Actionsからアーティファクトをダウンロードしてここに保存
+```
+
+---
+
+## 🔧 手順7: クリーンアップ
+
+### 7.1 テスト用シークレットの削除
+
+```bash
+cd ~/WizCodeVerification/taskflow-app
+
+# mainブランチに戻る
+git checkout main
+
+# 検証用ブランチを削除
+git branch -D verify/S05-secret-detection-*
+
+# リモートブランチも削除（PRがマージ/クローズ済みの場合）
+git push origin --delete verify/S05-secret-detection-*
+```
+
+### 7.2 PRのクローズ
+
+GitHubでPRを「Close」（マージしない）します。
+
+**理由**: テスト用シークレットは本番ブランチにマージすべきではありません。
+
+---
+
+## ✅ 検証完了チェックリスト
+
+以下の項目をすべて確認してください：
+
+- [ ] **IDE検出**: VSCode拡張機能がシークレットをリアルタイムで検出した
+- [ ] **VCS検出**: Wiz GitHub AppがPR時にシークレットを検出した
+- [ ] **CI/CD検出**: GitHub Actionsワークフローでシークレットスキャンが実行された
+- [ ] **複数タイプ検出**: AWS Key, API Key, DB Password等が正しく検出された
+- [ ] **Wizコンソール確認**: 検出されたシークレットがWizコンソールで確認できた
+- [ ] **False Positive評価**: 誤検知を評価し、必要に応じて抑制した
+- [ ] **エビデンス収集**: 各段階のスクリーンショットを取得した
+- [ ] **クリーンアップ**: テスト用ブランチとPRを削除した
+
+---
+
+## 📊 検証結果サマリー
+
+### 検出されたシークレットタイプ
+
+| シークレットタイプ | 検出数 | リスクレベル | 検出場所の例 |
+|----------------|--------|------------|------------|
+| AWS Access Key | 2-3 | Critical | backend/.env.example, terraform/... |
+| API Keys (Stripe等) | 3-5 | High | backend/.env.example, frontend/... |
+| Database Passwords | 2-4 | High | docker-compose.yml, k8s/... |
+| JWT Secrets | 1-2 | Medium | backend/.env.example |
+| Private Keys | 0-1 | Critical | scripts/... |
+
+### 検出段階別の結果
+
+| 検出段階 | 検出可否 | 検出速度 | 詳細度 |
+|---------|---------|---------|--------|
+| **IDE（VSCode）** | ✅ | リアルタイム | 高（行番号、修正提案） |
+| **VCS（GitHub App）** | ✅ | PR作成時 | 高（コメント、推奨アクション） |
+| **CI/CD（GitHub Actions）** | ✅ | ビルド時 | 高（包括的レポート） |
+
+---
+
+## 🔧 トラブルシューティング
+
+### ❌ 問題1: VSCode拡張機能がシークレットを検出しない
+
+**原因と対処**:
+```bash
+# Wiz拡張機能の再認証
+1. VSCodeでCommand Palette (Ctrl+Shift+P)
+2. "Wiz: Authenticate" を実行
+3. Service Accountで認証
+
+# 拡張機能の再起動
+1. VSCodeを再起動
+2. "Wiz: Scan Workspace" を手動実行
+```
+
+### ❌ 問題2: GitHub Appがシークレットを検出しない
+
+**確認事項**:
+```bash
+# Wiz GitHub Appのインストール確認
+1. GitHubリポジトリの Settings > Integrations
+2. Wiz Appが有効であることを確認
+3. リポジトリアクセス権限の確認
+
+# PRの再作成
+git commit --amend --no-edit
+git push --force
+```
+
+### ❌ 問題3: CI/CDワークフローでスキャンエラー
+
+**原因と対処**:
+```bash
+# GitHub Secretsの確認
+gh secret list
+
+# 必要なSecrets:
+# - WIZ_CLIENT_ID
+# - WIZ_CLIENT_SECRET
+
+# Wiz認証の確認
 wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
-
-# ディレクトリスキャン（シークレット検出）
-wizcli dir scan --path . --scan-types secrets
-
-# 特定ファイルのスキャン
-wizcli dir scan --path backend/src/config/vulnerable-config.js
-
-# JSON形式で結果を出力
-wizcli dir scan --path . --scan-types secrets --output-format json > secrets-scan.json
 ```
 
-### Step 4: Git Hookの設定（オプション）
+---
 
-コミット前に自動的にスキャンを実行します。
+## 📚 参考資料
 
-```bash
-# .git/hooks/pre-commit
-
-#!/bin/bash
-
-echo "Running Wiz secret scan..."
-
-# Wiz CLIでシークレットスキャン
-wizcli dir scan --path . --scan-types secrets --severity CRITICAL,HIGH
-
-if [ $? -ne 0 ]; then
-  echo "❌ Secret detection failed! Commit blocked."
-  echo "Please remove hardcoded secrets before committing."
-  exit 1
-fi
-
-echo "✅ No secrets detected. Proceeding with commit."
-```
-
-```bash
-# Hookに実行権限を付与
-chmod +x .git/hooks/pre-commit
-```
-
-### Step 5: GitHub PR作成時の自動スキャン
-
-脆弱なコードでPRを作成します。
-
-```bash
-# ブランチ作成
-git checkout -b test/secret-detection
-
-# ファイルをステージング
-git add backend/src/config/vulnerable-config.js
-
-# コミット（Git Hookがブロックする場合は無効化）
-git commit -m "Test: Add vulnerable config for secret detection" --no-verify
-
-# プッシュ
-git push origin test/secret-detection
-
-# PRを作成
-gh pr create --title "Test: Secret Detection" --body "Testing Wiz secret detection capabilities"
-```
-
-**期待される動作**:
-- Wiz GitHub AppがPRを自動スキャン
-- 検出されたシークレットがPRコメントとして表示される
-- マージがブロックされる（設定による）
-
-### Step 6: CI/CDパイプラインでのスキャン
-
-```yaml
-# .github/workflows/S05-wiz-secret-scan.yml
-name: S05 - Secret Detection
-
-on:
-  pull_request:
-  push:
-    branches:
-      - main
-
-jobs:
-  secret-scan:
-    name: Scan for Hardcoded Secrets
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 履歴全体を取得
-
-      - name: Install Wiz CLI
-        run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
-
-      - name: Authenticate with Wiz
-        env:
-          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
-          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: |
-          wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
-
-      - name: Scan for secrets
-        id: secret-scan
-        run: |
-          wizcli dir scan \
-            --path . \
-            --scan-types secrets \
-            --output-format json > secrets-results.json
-
-          # 検出されたシークレット数をカウント
-          SECRET_COUNT=$(jq '.secrets | length' secrets-results.json)
-          echo "secret_count=$SECRET_COUNT" >> $GITHUB_OUTPUT
-
-      - name: Upload scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: secret-scan-results
-          path: secrets-results.json
-
-      - name: Comment on PR with results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('secrets-results.json', 'utf8'));
-
-            let comment = '## 🔒 Secret Detection Results\n\n';
-
-            if (results.secrets && results.secrets.length > 0) {
-              comment += `⚠️ **Found ${results.secrets.length} hardcoded secret(s)**\n\n`;
-
-              results.secrets.forEach(secret => {
-                comment += `### ${secret.type}\n`;
-                comment += `- **File**: \`${secret.file}\`\n`;
-                comment += `- **Line**: ${secret.line}\n`;
-                comment += `- **Severity**: ${secret.severity}\n\n`;
-              });
-
-              comment += '\n**Action Required**: Please remove hardcoded secrets before merging.\n';
-            } else {
-              comment += '✅ No hardcoded secrets detected.\n';
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-
-      - name: Fail if secrets detected
-        if: steps.secret-scan.outputs.secret_count > 0
-        run: |
-          echo "❌ Found ${{ steps.secret-scan.outputs.secret_count }} secret(s)!"
-          echo "Please remove hardcoded secrets before proceeding."
-          exit 1
-```
-
-### Step 7: コンテナイメージスキャン
-
-```bash
-# 脆弱なDockerfileをビルド
-docker build -f Dockerfile.vulnerable -t vulnerable-app:test .
-
-# イメージスキャン（シークレット検出を含む）
-wizcli docker scan --image vulnerable-app:test
-
-# シークレット検出のみ
-wizcli docker scan --image vulnerable-app:test --scan-types secrets
-```
-
-### Step 8: 修正版の作成
-
-正しいシークレット管理方法を実装します。
-
-```javascript
-// backend/src/config/secure-config.js
-
-// 環境変数から読み込み
-module.exports = {
-  aws: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION || 'us-east-1'
-  },
-
-  database: {
-    host: process.env.DB_HOST,
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    connectionString: process.env.DATABASE_URL
-  },
-
-  thirdParty: {
-    stripeKey: process.env.STRIPE_SECRET_KEY,
-    githubToken: process.env.GITHUB_TOKEN,
-    sendGridApiKey: process.env.SENDGRID_API_KEY,
-    slackWebhook: process.env.SLACK_WEBHOOK_URL
-  },
-
-  jwt: {
-    secret: process.env.JWT_SECRET,
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  }
-};
-```
-
-```.env.example
-# 環境変数のテンプレート
-
-# AWS認証情報
-AWS_ACCESS_KEY_ID=your_access_key_here
-AWS_SECRET_ACCESS_KEY=your_secret_key_here
-AWS_REGION=us-east-1
-
-# データベース
-DB_HOST=localhost
-DB_USERNAME=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=myapp
-DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
-
-# サードパーティAPI
-STRIPE_SECRET_KEY=your_stripe_key
-GITHUB_TOKEN=your_github_token
-SENDGRID_API_KEY=your_sendgrid_key
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=7d
-```
-
-```.gitignore
-# シークレットファイルを除外
-.env
-.env.local
-.env.production
-secrets/
-*.key
-*.pem
-credentials.json
-```
-
-## 期待される結果
-
-### 検出されるシークレットの種類
-
-| シークレットタイプ | 検出数 | 重大度 |
-|------------------|--------|--------|
-| AWS認証情報 | 4 | CRITICAL |
-| データベースパスワード | 3 | CRITICAL |
-| APIキー（GitHub, Stripe等） | 5 | HIGH |
-| JWTシークレット | 1 | HIGH |
-| OAuthクライアントシークレット | 1 | HIGH |
-| SSHプライベートキー | 1 | CRITICAL |
-
-### 検出段階
-
-| 段階 | 検出されるべき | 実際の検出 |
-|-----|-------------|-----------|
-| VSCode（リアルタイム） | ✅ | 確認 |
-| Git Hook（コミット前） | ✅ | 確認 |
-| GitHub PR | ✅ | 確認 |
-| CI/CDパイプライン | ✅ | 確認 |
-| コンテナイメージ | ✅ | 確認 |
-
-## 検証ポイント
-
-### 1. 検出精度
-- [ ] すべてのシークレットタイプが検出される
-- [ ] False Positiveが少ない
-- [ ] シークレットの種類が正確に分類される
-
-### 2. 検出タイミング
-- [ ] VSCodeでリアルタイム検出
-- [ ] コミット前に検出
-- [ ] PR作成時に検出
-- [ ] CI/CDパイプラインで検出
-- [ ] コンテナイメージスキャンで検出
-
-### 3. フィードバック品質
-- [ ] 各シークレットの位置（ファイル、行番号）が明示される
-- [ ] 修正方法が具体的に提示される
-- [ ] 重大度が適切に分類される
-
-### 4. 開発者体験
-- [ ] 誤検知による開発の妨げが最小限
-- [ ] 修正方法が明確で実行しやすい
-- [ ] パフォーマンスへの影響が許容範囲
-
-## トラブルシューティング
-
-### 問題: 特定のシークレットが検出されない
-
-```bash
-# Wiz CLIのバージョンを確認
-wizcli version
-
-# 最新版にアップデート
-curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-chmod +x wizcli
-sudo mv wizcli /usr/local/bin/
-```
-
-### 問題: False Positiveが多い
-
-```bash
-# .wizignore ファイルで除外設定
-echo "test/fixtures/**" >> .wizignore
-echo "*.test.js" >> .wizignore
-echo "mock-data/**" >> .wizignore
-```
-
-### 問題: Git Hookがブロックしてコミットできない
-
-```bash
-# 一時的にフックをバイパス（テスト目的のみ）
-git commit --no-verify
-
-# またはフックを無効化
-mv .git/hooks/pre-commit .git/hooks/pre-commit.disabled
-```
-
-## 関連シナリオ
-
-- [S01: IDE統合](S01-ide-integration.md) - VSCodeでのリアルタイム検出
-- [S02: VCS統合](S02-vcs-integration.md) - PR作成時の自動スキャン
-- [S03: CI/CD統合](S03-cicd-integration.md) - パイプラインでの自動スキャン
-- [S04: IaCスキャン](S04-iac-scanning.md) - IaC内のシークレット検出
-
-## 参考資料
-
+### Wiz公式ドキュメント
 - [Wiz Secret Detection](https://docs.wiz.io/wiz-docs/docs/secret-detection)
-- [シークレット管理のベストプラクティス](https://docs.wiz.io/wiz-docs/docs/secret-management-best-practices)
-- [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/)
-- [GitHub Secrets Management](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
-- [OWASP Secret Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
+- [Wiz VSCode Extension](https://docs.wiz.io/wiz-docs/docs/vscode-extension)
+- [Wiz GitHub App](https://docs.wiz.io/wiz-docs/docs/github-app)
+
+### ベストプラクティス
+- **シークレット管理**: GitHub Secrets、AWS Secrets Manager、HashiCorp Vaultの使用
+- **環境変数**: `.env`ファイルを`.gitignore`に追加
+- **コミット前チェック**: Git pre-commitフックの活用
+
+---
+
+## 🎯 次のステップ
+
+**Phase 1完了**: S01～S05のシナリオをすべて完了しました！
+
+**Phase 2に進む場合**:
+1. [AWS_DEPLOYMENT_GUIDE.md](../guides/AWS_DEPLOYMENT_GUIDE.md)でAWS環境をデプロイ
+2. [S06: SBOM生成と追跡](../phase2-code-to-cloud/S06-sbom-tracking.md)に進む
+
+**エビデンス収集**:
+- [EVIDENCE_COLLECTION_GUIDE.md](../guides/EVIDENCE_COLLECTION_GUIDE.md)を参照して、Phase 1全体のエビデンスを整理
+
+---
+
+**✅ S05検証完了**: これでPhase 1のシークレット検出検証が完了しました。

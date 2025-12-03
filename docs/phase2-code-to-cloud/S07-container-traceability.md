@@ -1,361 +1,107 @@
-# S07: コンテナトレーサビリティ
+# シナリオ7: コンテナトレーサビリティ（Code-to-Cloud）
 
-## 概要
+## 📋 シナリオ概要
 
-AWS ECS/EKSにデプロイされたコンテナを、ソースコードまで遡って追跡できることを検証します。実行中のワークロードで検出された脆弱性を、どのGitコミットで導入されたかまで特定できることを確認します。
+### 目的
+AWS ECS Fargateにデプロイされた実行中のコンテナを、ソースコードまで遡って追跡し、脆弱性がどのGitコミットで導入されたかを特定する能力を検証します。
 
-## 検証目的
+### 検証内容
+- ✅ ECS実行中タスクとECRイメージの紐付け
+- ✅ ECRイメージとGitHubソースコードの紐付け
+- ✅ 脆弱性検出からコミットSHAまでの追跡
+- ✅ Dockerfileとpackage.jsonへのリンク確認
 
-- デプロイされたコンテナがWiz Cloudで検出されることを確認
-- コンテナ → ECRイメージ → CI/CDビルド → ソースコードの完全な追跡
-- Wiz Security Graphでの可視化
-- 脆弱性の原因となったコード変更の特定
+---
 
-## 前提条件
+## ⏱️ 所要時間
 
-### AWS環境
-- AWS アカウント
-- ECS Clusterまたは EKS Cluster
-- ECR Repository
-- 必要なIAMロール
+| フェーズ | 所要時間 |
+|---------|---------|
+| **ワークフロー実行** | 15-20分 |
+| **Wiz確認** | 10-15分 |
 
-### Wiz設定
-- Wiz Cloud有効化
-- AWS Connector設定完了
-- Wiz Sensor デプロイ（ECS/EKS）
+**💡 前提**: S06完了後、ECSタスクが実行中であること。
 
-### 必須ツール
-- Docker Desktop
-- AWS CLI v2
-- kubectl（EKS使用時）
-- Wiz CLI
+---
 
-## 検証手順
+## 📋 前提条件
 
-### Step 1: ECRリポジトリの作成
+### ✅ 必須要件
+- [x] **S06完了**: SBOMが生成され、ECRにイメージがプッシュ済み
+- [x] **ECSタスク実行中**: taskflow-backend, taskflow-frontendサービスが起動中
 
-```bash
-# 環境変数設定
-export AWS_ACCOUNT_ID="123456789012"
-export AWS_REGION="us-east-1"
-export ECR_REPOSITORY="taskflow-backend"
+---
 
-# ECRリポジトリ作成
-aws ecr create-repository \
-  --repository-name $ECR_REPOSITORY \
-  --region $AWS_REGION
+## 🔧 手順1: ワークフロー実行（Code-to-Cloudメタデータ付与）
 
-# ECR URLを取得
-export ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-```
-
-### Step 2: メタデータ付きイメージのビルドとプッシュ
+### 1.1 S07ワークフローの実行
 
 ```bash
-# ECRにログイン
-aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin $ECR_REGISTRY
+cd ~/WizCodeVerification/taskflow-app
 
-# Gitメタデータを取得
-export GIT_COMMIT=$(git rev-parse HEAD)
-export GIT_BRANCH=$(git branch --show-current)
-export GIT_REPO=$(git config --get remote.origin.url)
-
-# イメージをビルド
-docker build \
-  --build-arg GIT_COMMIT=$GIT_COMMIT \
-  --build-arg GIT_BRANCH=$GIT_BRANCH \
-  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-  -t $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_COMMIT \
-  ./backend
-
-# Wiz CLIでイメージにメタデータをタグ付け
-wizcli docker tag \
-  --image $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_COMMIT \
-  --source-repo "$GITHUB_REPOSITORY" \
-  --source-branch "$GIT_BRANCH" \
-  --source-commit "$GIT_COMMIT"
-
-# ECRにプッシュ
-docker push $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_COMMIT
-
-# latestタグも付与
-docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_COMMIT $ECR_REGISTRY/$ECR_REPOSITORY:latest
-docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+# ワークフロー手動実行
+gh workflow run S07-container-build.yml
 ```
 
-### Step 3: ECSへのデプロイ
+このワークフローは、Dockerイメージに以下のメタデータを付与します：
+- Git Commit SHA
+- Git Branch
+- Build Date
+- GitHub Repository URL
 
-```json
-// ecs-task-definition.json
-{
-  "family": "taskflow-backend",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
-  "containerDefinitions": [
-    {
-      "name": "backend",
-      "image": "${ECR_REGISTRY}/${ECR_REPOSITORY}:${GIT_COMMIT}",
-      "portMappings": [
-        {
-          "containerPort": 3000,
-          "protocol": "tcp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "NODE_ENV",
-          "value": "production"
-        },
-        {
-          "name": "GIT_COMMIT",
-          "value": "${GIT_COMMIT}"
-        },
-        {
-          "name": "GIT_BRANCH",
-          "value": "${GIT_BRANCH}"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/taskflow-backend",
-          "awslogs-region": "us-east-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      }
-    }
-  ],
-  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskRole"
-}
+---
+
+## 🔧 手順2: Wizコンソールでトレーサビリティ確認
+
+### 2.1 実行中のECSタスクを確認
+
+```
+1. Wizコンソール > Cloud > Resources > ECS Tasks
+2. フィルター: Status = Running
+3. taskflow-backend-service または taskflow-frontend-service を選択
 ```
 
-```bash
-# 環境変数を置換
-envsubst < ecs-task-definition.json > ecs-task-definition-resolved.json
-
-# タスク定義を登録
-aws ecs register-task-definition \
-  --cli-input-json file://ecs-task-definition-resolved.json
-
-# サービスを作成/更新
-aws ecs create-service \
-  --cluster taskflow-cluster \
-  --service-name taskflow-backend-service \
-  --task-definition taskflow-backend \
-  --desired-count 2 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
-```
-
-### Step 4: GitHub Actionsワークフロー
-
-```yaml
-# .github/workflows/S07-container-build.yml
-name: S07 - Container Build and Deploy
-
-on:
-  push:
-    branches: [main]
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: taskflow-backend
-  ECS_CLUSTER: taskflow-cluster
-  ECS_SERVICE: taskflow-backend-service
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Install Wiz CLI
-        run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
-
-      - name: Authenticate with Wiz
-        env:
-          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
-          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: |
-          wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
-
-      - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build \
-            --build-arg GIT_COMMIT=${{ github.sha }} \
-            --build-arg GIT_BRANCH=${{ github.ref_name }} \
-            --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-            --build-arg BUILD_ID=${{ github.run_id }} \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            ./backend
-
-      - name: Scan image with Wiz
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          wizcli docker scan \
-            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --policy "Default vulnerabilities policy"
-
-      - name: Tag image with Code-to-Cloud metadata
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          wizcli docker tag \
-            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --source-repo "${{ github.repository }}" \
-            --source-branch "${{ github.ref_name }}" \
-            --source-commit "${{ github.sha }}" \
-            --ci-build-id "${{ github.run_id }}"
-
-      - name: Push image to ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-      - name: Deploy to ECS
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          # 新しいタスク定義を登録
-          TASK_DEFINITION=$(aws ecs describe-task-definition \
-            --task-definition taskflow-backend \
-            --query taskDefinition)
-
-          NEW_TASK_DEF=$(echo $TASK_DEFINITION | \
-            jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
-            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-
-          NEW_TASK_INFO=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_TASK_DEF")
-
-          NEW_REVISION=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.revision')
-
-          # サービスを更新
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
-            --task-definition taskflow-backend:$NEW_REVISION \
-            --force-new-deployment
-```
-
-### Step 5: Wiz Cloudでの確認
-
-1. **Wiz Consoleにログイン**
-2. **Inventory → Workloads** に移動
-3. **ECS Tasksまたは Kubernetes Pods** を表示
-4. **taskflow-backend** を検索
-5. **詳細ページを開く**
+### 2.2 Code-to-Cloud連携を確認
 
 **確認項目**:
-- タスク/Podが検出されていること
-- 実行中のイメージが正しく表示されていること
-- メタデータ（Git情報）が含まれていること
-
-### Step 6: Security Graphでのトレーサビリティ確認
-
-1. **Security Graph** タブを開く
-2. **Code Origin** セクションを確認
-3. **トレーサビリティパスを確認**:
-
 ```
-GitHub Repository (taskflow-backend)
-    ↓
-GitHub Commit (abc123...)
-    ↓
-GitHub Actions Run (#42)
-    ↓
-ECR Image (taskflow-backend:abc123)
-    ↓
-ECS Task (task/abc123-def456)
+✅ Container Imagesタブ:
+   - ECRイメージ名とタグ
+   - イメージのSHA256ダイジェスト
+   - スキャン結果
+
+✅ Source Codeタブ:
+   - GitHubリポジトリ名: <org>/WizCodeVerification
+   - コミットSHA: 直接コミットへのリンク
+   - Dockerfile: taskflow-app/backend/Dockerfile
+   - ビルド日時
 ```
 
-4. **各ノードをクリックして詳細を確認**
-5. **脆弱性がある場合、どのコミットで導入されたか確認**
+### 2.3 脆弱性からソースコードへの追跡
 
-### Step 7: 脆弱性の追跡テスト
-
-```bash
-# 脆弱性を含むパッケージを追加
-# package.jsonに古いlodashを追加
-git add package.json
-git commit -m "Add vulnerable lodash version for testing"
-git push
-
-# CI/CDが自動実行され、デプロイされる
-
-# Wiz Cloudで確認
-# 1. 新しいコミットでビルドされたイメージが表示される
-# 2. 脆弱性が検出される
-# 3. その脆弱性を導入したコミットが特定される
+```
+1. Vulnerabilitiesタブで脆弱性を選択
+2. 該当するパッケージを確認（例: express, next）
+3. Source Codeタブで package.json を開く
+4. GitHubで脆弱な依存関係を特定
+5. Blame機能で導入したコミットを確認
 ```
 
-## 期待される結果
+---
 
-### トレーサビリティの完全性
+## ✅ 検証完了チェックリスト
 
-| 項目 | 確認内容 | 結果 |
-|-----|---------|------|
-| ソースコード特定 | GitHubリポジトリとコミットが表示される | ✅ |
-| CI/CDビルド特定 | GitHub Actions Run IDが表示される | ✅ |
-| イメージ特定 | ECRイメージタグと一致する | ✅ |
-| ランタイム特定 | ECSタスク/EKS Podが表示される | ✅ |
+- [ ] **ECSタスク確認**: 実行中のタスクがWizで可視化された
+- [ ] **イメージ紐付け**: ECSタスクとECRイメージが紐付けられた
+- [ ] **ソース紐付け**: ECRイメージとGitHubソースコードが紐付けられた
+- [ ] **コミット追跡**: 脆弱性からGitコミットまで追跡できた
 
-### Security Graph
+---
 
-- すべてのコンポーネント間の関係が可視化される
-- クリック可能なリンクで各コンポーネントに移動できる
-- タイムラインで変更履歴が追跡できる
+## 🎯 次のステップ
 
-## 検証ポイント
+- [S08: ランタイム脆弱性の優先順位付け](S08-runtime-prioritization.md)
 
-- [ ] デプロイされたコンテナがWiz Cloudで検出される
-- [ ] コンテナからソースコードまで完全に追跡できる
-- [ ] CI/CDパイプラインとの紐付けが確認できる
-- [ ] Security Graphで可視化される
-- [ ] 脆弱性を導入したコミットが特定できる
-- [ ] メタデータが正確に記録されている
+---
 
-## 関連シナリオ
-
-- [S06: SBOM生成と追跡](S06-sbom-tracking.md)
-- [S08: ランタイム優先順位付け](S08-runtime-prioritization.md)
-- [S10: インシデント対応フロー](../phase3-integration/S10-incident-response.md)
-
-## 参考資料
-
-- [Wiz Code-to-Cloud](https://docs.wiz.io/wiz-docs/docs/code-to-cloud)
-- [Wiz ECS Integration](https://docs.wiz.io/wiz-docs/docs/aws-ecs-integration)
-- [Wiz Security Graph](https://docs.wiz.io/wiz-docs/docs/security-graph)
+**✅ S07検証完了**: Code-to-Cloudトレーサビリティが確認できました。

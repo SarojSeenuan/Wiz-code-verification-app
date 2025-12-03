@@ -497,10 +497,8 @@ GRANT ALL PRIVILEGES ON DATABASE taskflow TO taskflow_admin;
 EOF
 
 # データベースの初期化
-cd taskflow-app/scripts/setup
-chmod +x init-database.sh
-# スクリプトを編集してローカルDB情報に変更してから実行
-# ./init-database.sh
+# docker-composeを使用（推奨）
+docker-compose up -d
 ```
 
 ### オプションB: AWS RDSを使用（Phase 2以降）

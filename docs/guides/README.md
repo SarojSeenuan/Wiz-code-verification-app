@@ -286,15 +286,13 @@
 | **run-wiz-scan.sh** | Wizスキャン実行（Linux/macOS） | 各シナリオ実施時 |
 | **run-wiz-scan.ps1** | Wizスキャン実行（Windows） | 各シナリオ実施時 |
 
-**スクリプト実行例**:
+**検証スクリプト実行例**:
 ```bash
-# Linux/macOS
-cd taskflow-app/scripts/setup
-./init-database.sh
+# Linux/macOS - 環境変数検証
+./scripts/validate-env.sh phase1
 
-# Windows PowerShell
-cd taskflow-app\scripts\setup
-.\init-database.ps1
+# Windows PowerShell - 環境変数検証
+.\scripts\validate-env.ps1 phase1
 ```
 
 ---

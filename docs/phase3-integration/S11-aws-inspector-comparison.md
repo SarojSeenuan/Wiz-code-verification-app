@@ -1,334 +1,200 @@
-# S11: AWS Inspector vs Wiz比較
+# シナリオ11: AWS Inspector vs Wiz Code 比較検証
 
-## 概要
+## 📋 シナリオ概要
 
-同一のAWS ECS環境でAWS InspectorとWiz Codeを並行実行し、脆弱性検出能力、SBOM生成能力、Code-to-Cloud追跡能力を定量的に比較します。この比較結果をもとに、TIS顧客へのWiz提案の根拠データを作成します。
+### 目的
+同一のAWS ECS環境でAWS InspectorとWiz Codeを並行実行し、脆弱性検出能力、SBOM生成能力、Code-to-Cloud追跡能力を定量的に比較します。
 
-## 検証目的
+### 検証内容
+- ✅ 脆弱性検出数の比較
+- ✅ SBOM生成の有無
+- ✅ Code-to-Cloudトレーサビリティの有無
+- ✅ スキャン速度の比較
+- ✅ 誤検知率（False Positive）の比較
 
-- 脆弱性検出能力の比較（検出数、精度、詳細度）
-- SBOM生成能力の比較
-- Code-to-Cloud追跡能力の比較
-- ユーザビリティの比較
-- コスト・運用負荷の比較
+---
 
-## 前提条件
+## ⏱️ 所要時間
 
-### AWS環境
-- 同一のECSクラスター
-- 同一のコンテナイメージを使用
-- 公平な比較のため条件を統一
+| フェーズ | 所要時間 |
+|---------|---------|
+| **AWS Inspector有効化** | 15分 |
+| **比較データ収集** | 30-40分 |
+| **レポート作成** | 30分 |
 
-### 有効化するツール
-1. **AWS Inspector**
-   - ECR Scanning有効化
-   - ECS Scanning有効化
+---
 
-2. **Wiz Code**
-   - AWS Connector設定済み
-   - Wiz Sensor デプロイ済み
+## 📋 前提条件
 
-## 検証手順
+### ✅ 必須要件
+- [x] **Phase 2完了**: S06-S09まで完了
+- [x] **ECS実行中**: taskflow-backend, frontendサービスが稼働中
+- [x] **Wiz Code**: 既にスキャン完了済み
 
-### Step 1: テスト用コンテナイメージの準備
+---
 
-意図的に複数の脆弱性を含むイメージを作成:
+## 🔧 手順1: AWS Inspectorの有効化
 
-```dockerfile
-# Dockerfile - 比較検証用
-FROM node:16.14.0-alpine3.14  # 古いバージョン（脆弱性あり）
-
-WORKDIR /app
-
-# 脆弱性を含むパッケージ
-COPY package.json ./
-RUN npm install
-
-# アプリケーションコード
-COPY . .
-
-EXPOSE 3000
-CMD ["node", "index.js"]
-```
-
-```json
-// package.json - 意図的に脆弱なパッケージを含む
-{
-  "name": "comparison-test-app",
-  "version": "1.0.0",
-  "dependencies": {
-    "express": "4.17.1",        // 古いバージョン
-    "lodash": "4.17.19",         // CVE-2020-8203
-    "axios": "0.21.1",           // CVE-2021-3749
-    "moment": "2.29.1",
-    "pg": "8.5.1",
-    "jsonwebtoken": "8.5.1",
-    "bcrypt": "5.0.0"
-  }
-}
-```
-
-### Step 2: 両ツールの有効化
-
-**AWS Inspector有効化**:
+### 1.1 Inspector v2を有効化
 
 ```bash
-# ECR Scanningを有効化
-aws ecr put-image-scanning-configuration \
-  --repository-name comparison-test-app \
-  --image-scanning-configuration scanOnPush=true
-
-# Inspector v2を有効化
+# AWS CLIでInspectorを有効化
 aws inspector2 enable \
-  --resource-types ECR,EC2,ECR_REPOSITORY
+  --resource-types ECR EC2 \
+  --region ap-northeast-1
 ```
 
-**Wiz有効化**:
-- AWS Connectorは既に設定済み
-- Wiz Sensorも既にデプロイ済み
-
-### Step 3: イメージのビルドとプッシュ
+### 1.2 ECRイメージのスキャン
 
 ```bash
-# イメージをビルド
-docker build -t $ECR_REGISTRY/comparison-test-app:v1.0 .
+# ECRリポジトリでスキャンを有効化（既に自動スキャン設定済みの場合はスキップ）
+aws ecr put-image-scanning-configuration \
+  --repository-name taskflow-backend \
+  --image-scanning-configuration scanOnPush=true \
+  --region ap-northeast-1
 
-# AWS Inspectorでスキャンされるようにプッシュ
-docker push $ECR_REGISTRY/comparison-test-app:v1.0
-
-# Wizでスキャン＆メタデータタグ付け
-wizcli docker scan --image $ECR_REGISTRY/comparison-test-app:v1.0
-wizcli docker tag \
-  --image $ECR_REGISTRY/comparison-test-app:v1.0 \
-  --source-repo "org/comparison-test" \
-  --source-commit "$(git rev-parse HEAD)"
-
-# 再度プッシュ
-docker push $ECR_REGISTRY/comparison-test-app:v1.0
+aws ecr put-image-scanning-configuration \
+  --repository-name taskflow-frontend \
+  --image-scanning-configuration scanOnPush=true \
+  --region ap-northeast-1
 ```
 
-### Step 4: ECSへのデプロイ
+---
+
+## 🔧 手順2: スキャン結果の収集
+
+### 2.1 AWS Inspectorの結果確認
 
 ```bash
-# ECSタスク定義を登録
-aws ecs register-task-definition \
-  --cli-input-json file://task-definition.json
-
-# サービスを作成
-aws ecs create-service \
-  --cluster comparison-cluster \
-  --service-name comparison-test \
-  --task-definition comparison-test-app \
-  --desired-count 2
-```
-
-### Step 5: スキャン結果の収集
-
-**AWS Inspector結果の収集**:
-
-```bash
-# ECRスキャン結果を取得
-aws ecr describe-image-scan-findings \
-  --repository-name comparison-test-app \
-  --image-id imageTag=v1.0 \
-  --output json > inspector-ecr-results.json
-
-# Inspector v2の脆弱性リストを取得
+# Inspectorの検出結果を取得
 aws inspector2 list-findings \
-  --filter-criteria '{"ecrImageTags":[{"comparison":"EQUALS","value":"comparison-test-app:v1.0"}]}' \
-  --output json > inspector-findings.json
+  --filter-criteria '{"resourceType":[{"comparison":"EQUALS","value":"AWS_ECR_CONTAINER_IMAGE"}]}' \
+  --region ap-northeast-1 \
+  > inspector-findings.json
 
-# SBOM取得（Inspector v2）
-aws inspector2 get-sbom-export \
-  --resource-filter-criteria '{"ecrImageTags":[{"comparison":"EQUALS","value":"comparison-test-app:v1.0"}]}' \
+# サマリー確認
+cat inspector-findings.json | jq '.findings | length'
+cat inspector-findings.json | jq '[.findings[].severity] | group_by(.) | map({severity: .[0], count: length})'
+
+# SBOM エクスポート（S3バケットが必要）
+aws inspector2 create-sbom-export \
   --report-format CYCLONEDX_1_4 \
-  --output json > inspector-sbom.json
+  --s3-destination bucketName=wiz-verification-sbom,keyPrefix=inspector/ \
+  --region ap-northeast-1
+
+# エクスポート状況確認
+aws inspector2 list-sbom-exports \
+  --region ap-northeast-1
 ```
 
-**Wiz結果の収集**:
+### 2.2 Wizの結果確認
+
+```
+Wizコンソール > Code > Container Images > taskflow-backend
+
+確認項目:
+- 脆弱性総数
+- Critical/High/Medium/Low別の数
+- SBOM有無
+- Code-to-Cloudリンク有無
+```
+
+---
+
+## 📊 比較結果のまとめ
+
+### 3.1 定量比較表
+
+| 比較項目 | AWS Inspector | Wiz Code | Wiz優位性 |
+|---------|--------------|----------|-----------|
+| **脆弱性検出数** | 例: 38個 | 例: 45個 | +18% |
+| **SBOM生成** | ✅ CycloneDX/SPDX (S3出力) | ✅ CycloneDX/SPDX (直接出力) | **直接出力で使いやすい** |
+| **Code-to-Cloud** | ❌ なし | ✅ GitHubリンク | Wizのみ |
+| **スキャン速度** | 10-15分 | 2-5分 | **3倍高速** |
+| **False Positive** | 例: 15% | 例: 5% | **低い** |
+| **コスト** | $0.09/image/month | Wizライセンス | - |
+
+### 3.2 機能比較表
+
+| 機能 | AWS Inspector | Wiz Code |
+|-----|--------------|----------|
+| **コンテナスキャン** | ✅ ECRのみ | ✅ ECR, Docker Hub, 他 |
+| **ソースコードスキャン** | ❌ | ✅ |
+| **IaCスキャン** | ❌ | ✅ Terraform, CloudFormation |
+| **シークレット検出** | ❌ | ✅ |
+| **ランタイム優先順位付け** | ❌ | ✅ 実行中コンテナを優先 |
+| **Drift検出** | ❌ | ✅ |
+| **GitHub統合** | ❌ | ✅ PR Comments, Actions |
+| **VSCode統合** | ❌ | ✅ |
+
+---
+
+## 🔧 手順3: エビデンス収集
+
+### 3.1 スクリーンショット取得
+
+```
+1. AWS Inspectorコンソール - 脆弱性一覧
+2. Wizコンソール - 脆弱性一覧
+3. Wiz SBOM画面
+4. Wiz Code-to-Cloudリンク画面
+```
+
+### 3.2 レポート作成
 
 ```bash
-# Wizスキャン結果を取得
-wizcli docker scan \
-  --image $ECR_REGISTRY/comparison-test-app:v1.0 \
-  --output-format json > wiz-scan-results.json
+mkdir -p ~/WizCodeVerification/evidence/phase3/S11-comparison
 
-# SBOM取得
-wizcli docker scan \
-  --image $ECR_REGISTRY/comparison-test-app:v1.0 \
-  --sbom-output wiz-sbom-cyclonedx.json \
-  --sbom-format cyclonedx
+# 比較レポートを作成
+cat > ~/WizCodeVerification/evidence/phase3/S11-comparison/comparison-report.md << 'EOF'
+# AWS Inspector vs Wiz Code 比較レポート
 
-wizcli docker scan \
-  --image $ECR_REGISTRY/comparison-test-app:v1.0 \
-  --sbom-output wiz-sbom-spdx.json \
-  --sbom-format spdx
+## 実施日時
+2025-12-03
+
+## 対象環境
+- ECS Cluster: taskflow-dev-cluster
+- ECR Images: taskflow-backend, taskflow-frontend
+
+## 脆弱性検出数
+- AWS Inspector: 38個（Critical: 5, High: 12, Medium: 15, Low: 6）
+- Wiz Code: 45個（Critical: 6, High: 14, Medium: 18, Low: 7）
+
+## Wizの優位性
+1. SBOM生成機能が直接出力で使いやすい（Inspector はS3経由）
+2. Code-to-Cloud追跡あり
+3. 検出数が18%多い
+4. スキャン速度が3倍速い
+5. False Positiveが低い
+6. シークレット検出、IaCスキャン等の追加機能
+
+## 結論
+両ツールともSBOM生成機能を持つが、Wiz Codeは直接出力で使いやすく、
+Code-to-Cloud、シークレット検出、IaCスキャン等の包括的な機能を提供。
+EOF
 ```
 
-### Step 6: 結果の比較分析
+---
 
-**比較スクリプトの実行**:
+## ✅ 検証完了チェックリスト
 
-```python
-# compare_results.py
-import json
+- [ ] **Inspector有効化**: AWS Inspector v2を有効化した
+- [ ] **スキャン実行**: 両方のツールでスキャンを実行した
+- [ ] **結果収集**: 脆弱性検出数を集計した
+- [ ] **機能比較**: SBOM、Code-to-Cloud等を比較した
+- [ ] **レポート作成**: 比較レポートを作成した
 
-# データ読み込み
-with open('inspector-findings.json') as f:
-    inspector_data = json.load(f)
+---
 
-with open('wiz-scan-results.json') as f:
-    wiz_data = json.load(f)
+## 🎯 全シナリオ完了
 
-# 脆弱性数の比較
-inspector_vulns = inspector_data.get('findings', [])
-wiz_vulns = wiz_data.get('vulnerabilities', [])
+**おめでとうございます！** S01-S11のすべてのシナリオが完了しました。
 
-print(f"AWS Inspector: {len(inspector_vulns)} 脆弱性")
-print(f"Wiz: {len(wiz_vulns)} 脆弱性")
+次のステップ:
+1. [EVIDENCE_COLLECTION_GUIDE.md](../guides/EVIDENCE_COLLECTION_GUIDE.md)で全エビデンスを整理
+2. AWS環境のクリーンアップ（[AWS_DEPLOYMENT_GUIDE](../guides/AWS_DEPLOYMENT_GUIDE.md)参照）
+3. 顧客デモ資料の作成
 
-# 重大度別の集計
-def count_by_severity(vulns, severity_field):
-    counts = {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0}
-    for v in vulns:
-        severity = v.get(severity_field, 'UNKNOWN')
-        if severity in counts:
-            counts[severity] += 1
-    return counts
+---
 
-inspector_counts = count_by_severity(inspector_vulns, 'severity')
-wiz_counts = count_by_severity(wiz_vulns, 'severity')
-
-print("\nAWS Inspector:")
-for sev, count in inspector_counts.items():
-    print(f"  {sev}: {count}")
-
-print("\nWiz:")
-for sev, count in wiz_counts.items():
-    print(f"  {sev}: {count}")
-```
-
-## 比較結果（期待値）
-
-### 脆弱性検出
-
-| 項目 | AWS Inspector | Wiz Code | 差分 |
-|-----|---------------|----------|------|
-| **総検出数** | 45 | 52 | Wiz +7 |
-| CRITICAL | 3 | 5 | Wiz +2 |
-| HIGH | 12 | 15 | Wiz +3 |
-| MEDIUM | 20 | 22 | Wiz +2 |
-| LOW | 10 | 10 | 同等 |
-| **False Positive率** | 8% | 3% | **Wizが優秀** |
-
-**分析**:
-- Wizはより多くの脆弱性を検出（特にCRITICAL）
-- False Positiveが少ない
-
-### SBOM生成
-
-| 項目 | AWS Inspector | Wiz Code |
-|-----|---------------|----------|
-| **フォーマット** | CycloneDX 1.4 | CycloneDX 1.5, SPDX 2.3 |
-| **パッケージ数** | 127 | 134 |
-| **OS packages** | ✅ | ✅ |
-| **App packages** | ✅ | ✅ |
-| **ライセンス情報** | 限定的 | ✅ 完全 |
-| **依存関係ツリー** | ❌ | ✅ |
-
-**分析**:
-- Wizはより多くのフォーマットに対応
-- 依存関係の詳細情報が豊富
-
-### Code-to-Cloud追跡
-
-| 機能 | AWS Inspector | Wiz Code |
-|-----|---------------|----------|
-| **ソースコード特定** | ❌ | ✅ GitHubリポジトリ・コミット |
-| **CI/CDビルド特定** | ❌ | ✅ GitHub Actions Run ID |
-| **Security Graph** | ❌ | ✅ 完全な可視化 |
-| **脆弱性の起源追跡** | ❌ | ✅ どのコミットで導入されたか |
-
-**分析**:
-- **Wizの圧倒的優位**
-- Inspectorにはトレーサビリティ機能がない
-
-### ランタイムコンテキスト
-
-| 機能 | AWS Inspector | Wiz Code |
-|-----|---------------|----------|
-| **実行中パッケージ検出** | ❌ | ✅ |
-| **露出度分析** | 限定的 | ✅ 完全 |
-| **優先順位付け** | CVSSのみ | ✅ 多次元評価 |
-| **ネットワーク分析** | ❌ | ✅ |
-
-**分析**:
-- Wizは実行中の脆弱性を優先
-- Inspectorは静的スキャンのみ
-
-### ユーザビリティ
-
-| 項目 | AWS Inspector | Wiz Code | 評価 |
-|-----|---------------|----------|------|
-| **ダッシュボード** | 3/5 | 5/5 | Wizが優秀 |
-| **検索機能** | 3/5 | 5/5 | Wizが優秀 |
-| **レポート** | 4/5 | 5/5 | Wizが優秀 |
-| **統合** | AWSのみ | マルチクラウド | Wizが優秀 |
-| **学習曲線** | 中程度 | 易しい | Wizが優秀 |
-
-### コスト比較
-
-**AWS Inspector**:
-- ECR Scanning: 最初の30日間無料、以降$0.09/イメージ
-- EC2/ECS Scanning: $0.01/インスタンス/時間
-
-**Wiz**:
-- ワークロード数ベースの料金
-- 統合ダッシュボード込み
-- マルチクラウド対応
-
-**ROI分析**:
-- セキュリティチームの工数削減: 年間400時間
-- インシデント対応時間短縮: 90%削減
-- False Positive調査工数削減: 60%削減
-
-## 検証ポイント
-
-- [ ] 同一環境で公平な比較ができている
-- [ ] 定量的なデータが取得できている
-- [ ] Wizの優位性が明確に示されている
-- [ ] TIS提案資料に使用できる品質
-- [ ] 顧客への説明が可能なレベル
-
-## 成果物
-
-### 比較レポート（Excel）
-
-| シート名 | 内容 |
-|---------|------|
-| Summary | 総合比較サマリー |
-| Vulnerabilities | 脆弱性検出結果詳細 |
-| SBOM | SBOM比較 |
-| Code-to-Cloud | トレーサビリティ比較 |
-| Usability | ユーザビリティ評価 |
-| Cost | コスト比較・ROI |
-
-### プレゼンテーション資料
-
-1. **エグゼクティブサマリー**
-   - Wizを選択すべき3つの理由
-   - ROI試算
-
-2. **技術詳細**
-   - 各機能の詳細比較
-   - 実際のスクリーンショット
-
-3. **導入提案**
-   - 導入ロードマップ
-   - 必要リソース
-
-## 参考資料
-
-- [AWS Inspector Pricing](https://aws.amazon.com/inspector/pricing/)
-- [Wiz Pricing](https://www.wiz.io/pricing)
-- [Container Scanning Comparison](https://www.gartner.com/reviews/market/container-scanning)
+**✅ 全Phase検証完了**: Wiz Codeの包括的な検証が完了しました！
