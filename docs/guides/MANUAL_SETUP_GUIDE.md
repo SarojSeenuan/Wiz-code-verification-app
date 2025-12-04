@@ -1,17 +1,17 @@
 # 手動セットアップガイド
 
-本ガイドでは、Wiz Code検証環境を手動でセットアップする手順を説明します。
+本ガイドでは、Wiz Code 検証環境を手動でセットアップする手順を説明します。
 
 > **📌 このドキュメントを読むべきタイミング**
 > プロジェクト開始時、初めて環境をセットアップする際に必ず読んでください。
 
 > **📖 次に読むべきドキュメント**
-> - Windows環境の方 → [WINDOWS_SETUP_GUIDE.md](./WINDOWS_SETUP_GUIDE.md)
+>
+> - Windows 環境の方 → [WINDOWS_SETUP_GUIDE.md](./WINDOWS_SETUP_GUIDE.md)
 > - その他の方 → [ENVIRONMENT_VARIABLES_GUIDE.md](./ENVIRONMENT_VARIABLES_GUIDE.md)
-> - AWS環境デプロイ（Phase 2-3）→ [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)
+> - AWS 環境デプロイ（Phase 2-3）→ [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)
 
-> **🔙 ガイド一覧に戻る**
-> [ガイド一覧](./README.md)
+> **🔙 ガイド一覧に戻る** > [ガイド一覧](./README.md)
 
 ---
 
@@ -63,38 +63,42 @@
 
 ---
 
-## 📋 Phase別セットアップ概要
+## 📋 Phase 別セットアップ概要
 
-### Phase 1のみ実施する場合（AWS不要）
+### Phase 1 のみ実施する場合（AWS 不要）
 
-**実施するシナリオ**: S01～S05（IDE統合、VCS統合、CI/CD統合、IaCスキャン、シークレット検出）
+**実施するシナリオ**: S01 ～ S05（IDE 統合、VCS 統合、CI/CD 統合、IaC スキャン、シークレット検出）
 
 **必要な環境**:
+
 - ✅ GitHub アカウント
-- ✅ Wiz認証情報
+- ✅ Wiz 認証情報
 - ✅ ローカル開発環境（Node.js, Docker）
-- ❌ AWS環境（不要）
+- ❌ AWS 環境（不要）
 
 **スキップ可能なセクション**:
-- [AWS認証情報の取得と設定](#aws認証情報の取得と設定) - スキップ可能
-- データベースセットアップの「オプションC: AWS RDS」 - スキップ
 
-### 全Phase実施する場合（AWS必要）
+- [AWS 認証情報の取得と設定](#aws認証情報の取得と設定) - スキップ可能
+- データベースセットアップの「オプション C: AWS RDS」 - スキップ
 
-**実施するシナリオ**: S01～S11（全シナリオ）
+### 全 Phase 実施する場合（AWS 必要）
+
+**実施するシナリオ**: S01 ～ S11（全シナリオ）
 
 **必要な環境**:
+
 - ✅ GitHub アカウント
-- ✅ Wiz認証情報
+- ✅ Wiz 認証情報
 - ✅ ローカル開発環境（Node.js, Docker）
-- ✅ AWS環境（ECS Fargate, RDS, ECR, VPC, ALB）
+- ✅ AWS 環境（ECS Fargate, RDS, ECR, VPC, ALB）
 
 **すべてのセクションを実施**
 
-**🚀 AWS環境のデプロイ手順**:
+**🚀 AWS 環境のデプロイ手順**:
+
 - 詳細は [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md) を参照してください
 - リージョン: 東京（ap-northeast-1）
-- 検証期間: 1週間（想定コスト: 約$26）
+- 検証期間: 1 週間（想定コスト: 約$26）
 - 必要リソース: ECS Fargate, ECR, RDS PostgreSQL, VPC, NAT Gateway, ALB
 
 ---
@@ -102,9 +106,9 @@
 ## 目次
 
 1. [前提条件](#前提条件)
-2. [GitHub環境のセットアップ](#github環境のセットアップ)
-3. [Wiz認証情報の取得と設定](#wiz認証情報の取得と設定)
-4. [AWS認証情報の取得と設定](#aws認証情報の取得と設定)
+2. [GitHub 環境のセットアップ](#github環境のセットアップ)
+3. [Wiz 認証情報の取得と設定](#wiz認証情報の取得と設定)
+4. [AWS 認証情報の取得と設定](#aws認証情報の取得と設定)
 5. [ローカル開発環境のセットアップ](#ローカル開発環境のセットアップ)
 6. [データベースのセットアップ](#データベースのセットアップ)
 7. [動作確認](#動作確認)
@@ -116,8 +120,8 @@
 ### 必須アカウント
 
 - **GitHub**: リポジトリ作成権限を持つアカウント
-- **Wiz**: テナントへのアクセス権限（Service AccountまたはUser）
-- **AWS**: ECS/EKS環境を構築できる権限を持つアカウント
+- **Wiz**: テナントへのアクセス権限（Service Account または User）
+- **AWS**: ECS/EKS 環境を構築できる権限を持つアカウント
 
 ### 必須ツール
 
@@ -134,6 +138,7 @@ terraform --version # v1.6.x 以上
 ```
 
 **インストール方法**:
+
 - Node.js: https://nodejs.org/
 - Git: https://git-scm.com/
 - Docker Desktop: https://www.docker.com/products/docker-desktop
@@ -142,11 +147,11 @@ terraform --version # v1.6.x 以上
 
 ---
 
-## GitHub環境のセットアップ
+## GitHub 環境のセットアップ
 
 ### 1. リポジトリの作成
 
-#### オプションA: 既存リポジトリをフォーク（推奨）
+#### オプション A: 既存リポジトリをフォーク（推奨）
 
 ```bash
 # GitHubでこのリポジトリをフォーク
@@ -157,7 +162,7 @@ git clone https://github.com/YOUR_USERNAME/WizCodeVerification.git
 cd WizCodeVerification
 ```
 
-#### オプションB: 新規リポジトリを作成
+#### オプション B: 新規リポジトリを作成
 
 ```bash
 # 新しいリポジトリを作成
@@ -175,7 +180,7 @@ git push -u origin main
 
 ### 2. ブランチ戦略の設定（検証の繰り返し実行用）
 
-Wiz検証を繰り返し実行できるようにブランチ戦略を設定します：
+Wiz 検証を繰り返し実行できるようにブランチ戦略を設定します：
 
 ```bash
 # 保護ブランチの設定
@@ -197,14 +202,15 @@ git push origin --delete feature/test-s01-ide-integration
 ```
 
 **推奨ブランチ命名規則**:
-- `feature/test-s01-*`: S01（IDE統合）のテスト用
-- `feature/test-s02-*`: S02（VCS統合）のテスト用
-- `feature/test-s03-*`: S03（CI/CD統合）のテスト用
-- 以降、S04-S11も同様
 
-### 3. GitHub Secretsの設定
+- `feature/test-s01-*`: S01（IDE 統合）のテスト用
+- `feature/test-s02-*`: S02（VCS 統合）のテスト用
+- `feature/test-s03-*`: S03（CI/CD 統合）のテスト用
+- 以降、S04-S11 も同様
 
-GitHub Actions用のSecretsを設定します：
+### 3. GitHub Secrets の設定
+
+GitHub Actions 用の Secrets を設定します：
 
 ```bash
 # Settings → Secrets and variables → Actions → New repository secret
@@ -219,11 +225,12 @@ AWS_REGION            # AWSリージョン（例: us-east-1）
 
 ---
 
-## Wiz認証情報の取得と設定
+## Wiz 認証情報の取得と設定
 
-### 1. Wizサービスアカウントの作成
+### 1. Wiz サービスアカウントの作成
 
-1. **Wizコンソールにログイン**
+1. **Wiz コンソールにログイン**
+
    - https://app.wiz.io/
 
 2. **Settings → Service Accounts → Create Service Account**
@@ -234,12 +241,11 @@ AWS_REGION            # AWSリージョン（例: us-east-1）
      - `read:issues`
      - `create:scans`
      - `read:scans`
-
 3. **認証情報の取得**
-   - Service Accountを作成すると、**Client ID**と**Client Secret**が表示されます
-   - **⚠️ 重要**: Client Secretは一度しか表示されないため、必ず安全な場所に保存してください
+   - Service Account を作成すると、**Client ID**と**Client Secret**が表示されます
+   - **⚠️ 重要**: Client Secret は一度しか表示されないため、必ず安全な場所に保存してください
 
-### 2. Wiz CLIのインストールと認証
+### 2. Wiz CLI のインストールと認証
 
 ```bash
 # Wiz CLIのダウンロード（Linux/macOS）
@@ -297,20 +303,23 @@ chmod 600 .env
 
 ---
 
-## AWS認証情報の取得と設定
+## AWS 認証情報の取得と設定
 
-### 1. AWS IAMユーザーの作成（Phase 2以降で必要）
+### 1. AWS IAM ユーザーの作成（Phase 2 以降で必要）
 
-1. **AWS Management Consoleにログイン**
+1. **AWS Management Console にログイン**
+
    - https://console.aws.amazon.com/
 
 2. **IAM → Users → Create user**
+
    - User name: `wiz-code-verification`
    - Access type: `Programmatic access`
 
 3. **必要な権限の付与**
 
    以下のポリシーをアタッチ：
+
    ```json
    {
      "Version": "2012-10-17",
@@ -337,9 +346,9 @@ chmod 600 .env
 
 4. **認証情報の取得**
    - ユーザー作成完了後、**Access Key ID**と**Secret Access Key**が表示されます
-   - CSVファイルをダウンロードして安全に保管
+   - CSV ファイルをダウンロードして安全に保管
 
-### 2. AWS CLIの設定
+### 2. AWS CLI の設定
 
 ```bash
 # AWS CLIの認証情報を設定
@@ -382,62 +391,199 @@ cd ../frontend
 npm install
 ```
 
+#### ⚠️ 社内ネットワーク環境での証明書エラー対処
+
+企業のプロキシやファイアウォールで自己署名証明書を使用している場合、npm install で以下のようなエラーが発生することがあります：
+
+```
+SELF_SIGNED_CERT_IN_CHAIN
+unable to get local issuer certificate
+certificate has expired
+```
+
+**解決方法 1: SSL 検証を一時的に無効化（開発環境のみ推奨）**
+
+```bash
+# 現在のセッションのみ有効
+npm config set strict-ssl false
+
+# または、環境変数で設定
+export NODE_TLS_REJECT_UNAUTHORIZED=0  # Linux/macOS
+$env:NODE_TLS_REJECT_UNAUTHORIZED=0    # Windows PowerShell
+
+# npm install を実行
+npm install
+
+# 完了後、設定を戻す（セキュリティのため）
+npm config set strict-ssl true
+unset NODE_TLS_REJECT_UNAUTHORIZED     # Linux/macOS
+Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED  # Windows PowerShell
+```
+
+**解決方法 2: .npmrc ファイルでプロジェクト単位で設定**
+
+```bash
+# プロジェクトルートまたはユーザーホームディレクトリに .npmrc を作成
+cat > ~/.npmrc << 'EOF'
+# SSL検証を無効化（開発環境のみ）
+strict-ssl=false
+
+# または、企業のプロキシ設定を追加
+# proxy=http://proxy.company.com:8080
+# https-proxy=http://proxy.company.com:8080
+
+# タイムアウト設定を延長（大きなパッケージのダウンロード用）
+fetch-timeout=60000
+EOF
+```
+
+**解決方法 3: 企業の CA 証明書を追加（最も安全な方法）**
+
+```bash
+# 企業のルートCA証明書を取得（例: company-ca.crt）
+# IT部門から証明書ファイルを取得してください
+
+# Node.jsに証明書を追加
+export NODE_EXTRA_CA_CERTS=/path/to/company-ca.crt  # Linux/macOS
+$env:NODE_EXTRA_CA_CERTS="C:\path\to\company-ca.crt"  # Windows PowerShell
+
+# または、.npmrc に追加
+echo "cafile=/path/to/company-ca.crt" >> ~/.npmrc
+
+# npm install を実行
+npm install
+```
+
+**解決方法 4: プロキシ経由での接続設定**
+
+```bash
+# 企業プロキシの設定
+npm config set proxy http://proxy.company.com:8080
+npm config set https-proxy http://proxy.company.com:8080
+
+# 認証が必要な場合
+npm config set proxy http://username:password@proxy.company.com:8080
+npm config set https-proxy http://username:password@proxy.company.com:8080
+
+# プロキシを経由しないドメインを指定
+npm config set noproxy "localhost,127.0.0.1,*.internal.com"
+```
+
+**設定の確認**
+
+```bash
+# 現在のnpm設定を確認
+npm config list
+npm config get strict-ssl
+npm config get proxy
+npm config get https-proxy
+
+# .npmrc ファイルの場所を確認
+npm config get userconfig  # ユーザー設定: ~/.npmrc
+npm config get globalconfig  # グローバル設定: /etc/npmrc
+```
+
 ### 2. 環境変数ファイルの作成
 
 #### バックエンド環境変数
 
 ```bash
 cd taskflow-app/backend
+
+# .env.example を .env にコピー
 cp .env.example .env
 
-# .env ファイルを編集
-cat > .env << 'EOF'
-# Node.js環境
-NODE_ENV=development
+# .envファイルを編集（必要に応じて）
+# 以下は .env.example の内容です
+```
+
+**backend/.env の設定内容**:
+
+```bash
+# ⚠️ Wiz検証用 - 意図的な脆弱性設定を含む
+# ⚠️ 本番環境では絶対に使用しないでください
+
+# サーバー設定
 PORT=3001
+NODE_ENV=development
 
 # データベース設定（ローカルPostgreSQL用）
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_NAME=taskflow
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=taskflow
+DB_USER=postgres
+DB_PASSWORD=postgres123
 
-# JWT設定（開発用）
-JWT_SECRET=development-jwt-secret-key-change-in-production
+# ストレージモード（development: localStorage, production: postgresql）
+STORAGE_MODE=localStorage
 
-# AWS認証情報（開発用はコメントアウト）
-# AWS_ACCESS_KEY_ID=
-# AWS_SECRET_ACCESS_KEY=
-# AWS_REGION=us-east-1
+# JWT設定（⚠️ 意図的に弱い設定 - Wiz検出用）
+JWT_SECRET=secret123
+JWT_EXPIRES_IN=24h
 
-# ログレベル
+# CORS設定
+CORS_ORIGIN=http://localhost:3000
+
+# ⚠️ 意図的な脆弱性：ハードコードされたシークレット（S05検出用）
+API_KEY=pk_live_1234567890abcdef1234567890abcdef
+ADMIN_PASSWORD=admin123
+
+# デバッグモード（⚠️ 本番では false にすべき）
+DEBUG_MODE=true
 LOG_LEVEL=debug
-EOF
 ```
+
+**💡 ポイント**:
+
+- `STORAGE_MODE=localStorage`: Phase 1 では簡単のためローカルストレージを使用
+- `STORAGE_MODE=postgresql`: Phase 2 以降で RDS を使用する場合に変更
+- 意図的な脆弱性が含まれているため、Wiz スキャンで検出されます
 
 #### フロントエンド環境変数
 
 ```bash
 cd taskflow-app/frontend
 
-# .env.local ファイルを作成
-cat > .env.local << 'EOF'
-# APIエンドポイント
+# .env.example を .env.local にコピー
+cp .env.example .env.local
+
+# .env.local ファイルを編集（必要に応じて）
+```
+
+**frontend/.env.local の設定内容**:
+
+```bash
+# ============================================================
+# TaskFlow Frontend 環境変数
+# ============================================================
+
+# APIエンドポイント設定
 NEXT_PUBLIC_API_URL=http://localhost:3001
 
-# 開発用設定
+# Next.js設定
 NODE_ENV=development
-EOF
+
+# 認証設定（NextAuth.js）
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret_here_minimum_32_characters
+
+# 外部API設定（必要に応じて）
+# NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=UA-XXXXX-Y
+# NEXT_PUBLIC_STRIPE_PUBLIC_KEY=pk_test_XXXXX
 ```
+
+**💡 ポイント**:
+
+- `NEXT_PUBLIC_API_URL`: バックエンドの URL を指定（開発環境では localhost:3001）
+- `NEXTAUTH_SECRET`: 32 文字以上のランダムな文字列を生成して設定してください
 
 ---
 
 ## データベースのセットアップ
 
-### オプションA: ローカルPostgreSQLを使用（推奨）
+### オプション A: ローカル PostgreSQL を使用（推奨）
 
-#### Docker Composeでセットアップ
+#### Docker Compose でセットアップ
 
 ```bash
 # プロジェクトルートに docker-compose.yml を作成
@@ -501,7 +647,7 @@ EOF
 docker-compose up -d
 ```
 
-### オプションB: AWS RDSを使用（Phase 2以降）
+### オプション B: AWS RDS を使用（Phase 2 以降）
 
 ```bash
 # Terraformでデータベースを作成
@@ -533,6 +679,7 @@ npm run dev
 ```
 
 **ヘルスチェック**:
+
 ```bash
 curl http://localhost:3001/health
 # 期待される出力: {"status":"ok","timestamp":"2025-11-29T..."}
@@ -549,10 +696,11 @@ npm run dev
 ```
 
 **ブラウザで確認**:
-- http://localhost:3000 にアクセス
-- TaskFlowダッシュボードが表示されれば成功
 
-### 3. API接続の確認
+- http://localhost:3000 にアクセス
+- TaskFlow ダッシュボードが表示されれば成功
+
+### 3. API 接続の確認
 
 ```bash
 # ユーザー登録のテスト
@@ -568,7 +716,7 @@ curl -X POST http://localhost:3001/api/auth/register \
 curl http://localhost:3001/api/tasks
 ```
 
-### 4. Wizスキャンのテスト
+### 4. Wiz スキャンのテスト
 
 ```bash
 # ディレクトリスキャン
@@ -577,6 +725,130 @@ wizcli dir scan --path ./taskflow-app/backend --policy-hits-only
 
 # 成功すれば脆弱性が検出されます（意図的な脆弱性）
 ```
+
+---
+
+## 📁 プロジェクト構造の詳細
+
+セットアップ完了後、プロジェクトは以下の構造になります：
+
+```
+WizCodeVerification/
+├── README.md                           # プロジェクト概要
+├── SCENARIO_MAP.md                     # 検証シナリオ構成図
+├── CLAUDE.md                           # Claude Code向け指示書
+├── .env.phase1.template                # Phase 1環境変数テンプレート
+├── .env.phase2.template                # Phase 2環境変数テンプレート
+│
+├── docs/                               # ドキュメント
+│   ├── guides/                         # セットアップ・検証ガイド
+│   │   ├── README.md                   # ガイドナビゲーションハブ
+│   │   ├── MANUAL_SETUP_GUIDE.md       # 本ファイル
+│   │   ├── WINDOWS_SETUP_GUIDE.md      # Windows環境セットアップ
+│   │   ├── ENVIRONMENT_VARIABLES_GUIDE.md  # 環境変数管理
+│   │   ├── BRANCH_MANAGEMENT_GUIDE.md  # ブランチ管理
+│   │   ├── EVIDENCE_COLLECTION_GUIDE.md    # エビデンス収集
+│   │   └── AWS_DEPLOYMENT_GUIDE.md     # AWSデプロイ手順
+│   │
+│   ├── overview/                       # 全体概要
+│   │   └── architecture.md             # アーキテクチャ設計
+│   │
+│   ├── phase1-shift-left/              # Phase 1ドキュメント
+│   │   ├── README.md
+│   │   ├── S01-ide-integration.md
+│   │   ├── S02-vcs-integration.md
+│   │   ├── S03-cicd-integration.md
+│   │   ├── S04-iac-scanning.md
+│   │   └── S05-secret-detection.md
+│   │
+│   ├── phase2-code-to-cloud/           # Phase 2ドキュメント
+│   │   ├── README.md
+│   │   ├── S06-sbom-tracking.md
+│   │   ├── S07-container-traceability.md
+│   │   ├── S08-runtime-prioritization.md
+│   │   └── S09-iac-drift-detection.md
+│   │
+│   └── phase3-integration/             # Phase 3ドキュメント
+│       ├── README.md
+│       ├── S10-incident-response.md
+│       └── S11-aws-inspector-comparison.md
+│
+├── scripts/                            # 検証用スクリプト
+│   ├── validate-env.ps1                # 環境変数検証（PowerShell）
+│   ├── validate-env.sh                 # 環境変数検証（Bash）
+│   ├── run-wiz-scan.ps1                # Wizスキャン実行（PowerShell）
+│   └── run-wiz-scan.sh                 # Wizスキャン実行（Bash）
+│
+├── taskflow-app/                       # TaskFlowアプリケーション
+│   ├── .github/workflows/              # GitHub Actions CI/CD
+│   │   ├── S03-wiz-full-scan.yml       # 全スキャンワークフロー
+│   │   ├── S05-wiz-secret-scan.yml     # シークレットスキャン
+│   │   ├── S06-sbom-generation.yml     # SBOM生成
+│   │   └── S07-container-build.yml     # コンテナビルド
+│   │
+│   ├── backend/                        # バックエンド（Node.js/Express）
+│   │   ├── src/                        # ソースコード
+│   │   ├── .env.example                # 環境変数サンプル
+│   │   ├── Dockerfile                  # コンテナイメージ定義
+│   │   ├── package.json                # 依存関係定義
+│   │   └── README.md
+│   │
+│   ├── frontend/                       # フロントエンド（Next.js/React）
+│   │   ├── pages/                      # Reactページ
+│   │   ├── components/                 # Reactコンポーネント
+│   │   ├── .env.example                # 環境変数サンプル
+│   │   ├── Dockerfile                  # コンテナイメージ定義
+│   │   ├── package.json                # 依存関係定義
+│   │   └── README.md
+│   │
+│   ├── terraform/                      # Infrastructure as Code
+│   │   ├── modules/                    # 再利用可能なモジュール
+│   │   │   ├── networking/             # VPC、サブネット
+│   │   │   ├── ecr/                    # ECRリポジトリ
+│   │   │   ├── ecs/                    # ECSクラスター、サービス
+│   │   │   └── rds/                    # RDSデータベース
+│   │   │
+│   │   └── environments/               # 環境別設定
+│   │       ├── dev/                    # 開発環境
+│   │       │   ├── main.tf
+│   │       │   ├── variables.tf
+│   │       │   ├── outputs.tf
+│   │       │   └── terraform.tfvars.example
+│   │       └── prod/                   # 本番環境（参考用）
+│   │
+│   └── k8s/                            # Kubernetes manifests
+│       ├── base/                       # 基本設定
+│       │   ├── namespace.yaml
+│       │   ├── backend-deployment.yaml
+│       │   ├── backend-service.yaml
+│       │   ├── frontend-deployment.yaml
+│       │   └── frontend-service.yaml
+│       └── overlays/                   # 環境別オーバーレイ
+│           ├── dev/
+│           └── prod/
+│
+├── comparison/                         # S11用：比較検証データ
+│   ├── aws-inspector/
+│   └── wiz/
+│
+└── evidence/                           # 検証エビデンス（スクリーンショット等）
+    ├── phase1/
+    ├── phase2/
+    └── phase3/
+```
+
+### 主要なディレクトリの説明
+
+| ディレクトリ                        | 説明                               | 使用 Phase |
+| ----------------------------------- | ---------------------------------- | ---------- |
+| **docs/**                           | すべてのドキュメント               | 全 Phase   |
+| **taskflow-app/backend/**           | Node.js/Express バックエンドアプリ | 全 Phase   |
+| **taskflow-app/frontend/**          | Next.js/React フロントエンドアプリ | 全 Phase   |
+| **taskflow-app/.github/workflows/** | GitHub Actions CI/CD パイプライン  | Phase 1, 2 |
+| **taskflow-app/terraform/**         | AWS インフラ定義（IaC）            | Phase 2, 3 |
+| **taskflow-app/k8s/**               | Kubernetes マニフェスト（参考用）  | Phase 3    |
+| **scripts/**                        | 検証用の便利スクリプト             | 全 Phase   |
+| **evidence/**                       | 検証エビデンス保存先               | 全 Phase   |
 
 ---
 
@@ -617,7 +889,7 @@ kill -9 <PID>
 # frontend/.env.local の NEXT_PUBLIC_API_URL を変更
 ```
 
-### Wiz認証エラー
+### Wiz 認証エラー
 
 ```bash
 # エラー: Authentication failed
@@ -634,6 +906,112 @@ wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
 # 3. 新しいサービスアカウントを作成（必要に応じて）
 ```
 
+### npm 証明書エラー（社内ネットワーク環境）
+
+企業のプロキシやファイアウォールで自己署名証明書を使用している場合のエラー：
+
+```bash
+# エラー例:
+# SELF_SIGNED_CERT_IN_CHAIN
+# unable to get local issuer certificate
+# certificate has expired
+# UNABLE_TO_VERIFY_LEAF_SIGNATURE
+```
+
+#### 解決方法 1: SSL 検証を一時的に無効化（最も簡単）
+
+```bash
+# npm設定でSSL検証を無効化
+npm config set strict-ssl false
+
+# または、環境変数で設定
+export NODE_TLS_REJECT_UNAUTHORIZED=0  # Linux/macOS
+$env:NODE_TLS_REJECT_UNAUTHORIZED="0"  # Windows PowerShell
+
+# npm install を実行
+npm install
+
+# 完了後、元に戻す（推奨）
+npm config set strict-ssl true
+```
+
+#### 解決方法 2: .npmrc ファイルで設定
+
+```bash
+# ユーザーホームディレクトリに .npmrc を作成
+# Windows: C:\Users\<username>\.npmrc
+# Linux/macOS: ~/.npmrc
+
+cat > ~/.npmrc << 'EOF'
+# SSL検証を無効化
+strict-ssl=false
+
+# タイムアウト設定を延長
+fetch-timeout=60000
+
+# レジストリ設定（必要に応じて）
+registry=https://registry.npmjs.org/
+EOF
+```
+
+#### 解決方法 3: 企業プロキシ設定
+
+```bash
+# プロキシ設定を追加
+npm config set proxy http://proxy.company.com:8080
+npm config set https-proxy http://proxy.company.com:8080
+
+# 認証が必要な場合
+npm config set proxy http://username:password@proxy.company.com:8080
+
+# プロキシを経由しないドメイン
+npm config set noproxy "localhost,127.0.0.1,*.internal.com"
+```
+
+#### 解決方法 4: 企業 CA 証明書の追加（最も安全）
+
+```bash
+# IT部門から企業のルートCA証明書を取得
+# 例: company-root-ca.crt
+
+# Node.jsに証明書を追加
+export NODE_EXTRA_CA_CERTS=/path/to/company-root-ca.crt  # Linux/macOS
+$env:NODE_EXTRA_CA_CERTS="C:\certs\company-root-ca.crt"  # Windows PowerShell
+
+# または、.npmrcに追加
+echo "cafile=/path/to/company-root-ca.crt" >> ~/.npmrc
+```
+
+#### Windows 環境での追加設定
+
+```powershell
+# PowerShellでの環境変数設定（永続化）
+[System.Environment]::SetEnvironmentVariable('NODE_TLS_REJECT_UNAUTHORIZED', '0', 'User')
+[System.Environment]::SetEnvironmentVariable('NODE_EXTRA_CA_CERTS', 'C:\certs\company-ca.crt', 'User')
+
+# 設定確認
+$env:NODE_TLS_REJECT_UNAUTHORIZED
+$env:NODE_EXTRA_CA_CERTS
+```
+
+#### 設定の確認と削除
+
+```bash
+# 現在の設定を確認
+npm config list
+npm config get strict-ssl
+npm config get proxy
+
+# 設定を削除
+npm config delete strict-ssl
+npm config delete proxy
+npm config delete https-proxy
+
+# .npmrcファイルを直接編集
+# Windows: notepad %USERPROFILE%\.npmrc
+# Linux/macOS: nano ~/.npmrc
+```
+
 ---
 
 ## 次のステップ
@@ -648,7 +1026,7 @@ wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
 
 ## 参考資料
 
-- [Wiz公式ドキュメント](https://docs.wiz.io/)
-- [AWS CLI設定ガイド](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+- [Wiz 公式ドキュメント](https://docs.wiz.io/)
+- [AWS CLI 設定ガイド](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 - [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [PostgreSQL公式ドキュメント](https://www.postgresql.org/docs/)
+- [PostgreSQL 公式ドキュメント](https://www.postgresql.org/docs/)
