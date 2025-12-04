@@ -368,10 +368,6 @@ A: [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)を参照するか、�
 
 ## 📞 サポート
 
-### TIS社内サポート
-- Slackチャネル: #wiz-verification
-- メール: wiz-team@tis.co.jp
-
 ### 外部サポート
 - [Wiz公式ドキュメント](https://docs.wiz.io/)
 - [Wiz Support Portal](https://support.wiz.io/)
