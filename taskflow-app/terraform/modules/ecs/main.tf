@@ -214,6 +214,33 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# SSMパラメータアクセス用のポリシー
+resource "aws_iam_role_policy" "ecs_task_execution_ssm" {
+  name = "${var.environment}-ecs-ssm-access"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        Resource = var.database_password_secret_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # IAMロール - ECSタスクロール
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.environment}-taskflow-ecs-task-role"

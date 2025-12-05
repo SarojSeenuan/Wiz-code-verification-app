@@ -11,7 +11,7 @@ version: '3.8'
 services:
   # PostgreSQLデータベース
   postgres:
-    image: postgres:13.4  # 【脆弱性】古いバージョン
+    image: postgres:15.14  # 【脆弱性】古いバージョン
     container_name: taskflow-postgres
     environment:
       # 【脆弱性】ハードコードされたデータベース認証情報
@@ -43,6 +43,9 @@ services:
         BUILD_DATE: ${BUILD_DATE:-unknown}
         BUILD_ID: ${BUILD_ID:-local}
         GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:-local/taskflow}
+        HTTP_PROXY: "http://tikK99184:Kkenyx1616@tkyproxy-auth.intra.tis.co.jp:8080"
+        HTTPS_PROXY: "http://tikK99184:Kkenyx1616@tkyproxy-auth.intra.tis.co.jp:8080"
+        NO_PROXY: "localhost,127.0.0.1,.intra.tis.co.jp"
     container_name: taskflow-backend
     environment:
       # 【脆弱性】環境変数に認証情報を直接記載
@@ -92,6 +95,9 @@ services:
         BUILD_DATE: ${BUILD_DATE:-unknown}
         BUILD_ID: ${BUILD_ID:-local}
         GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:-local/taskflow}
+        HTTP_PROXY: "http://tikK99184:Kkenyx1616@tkyproxy-auth.intra.tis.co.jp:8080"
+        HTTPS_PROXY: "http://tikK99184:Kkenyx1616@tkyproxy-auth.intra.tis.co.jp:8080"
+        NO_PROXY: "localhost,127.0.0.1,.intra.tis.co.jp"
     container_name: taskflow-frontend
     environment:
       # 【脆弱性】APIキーをハードコード

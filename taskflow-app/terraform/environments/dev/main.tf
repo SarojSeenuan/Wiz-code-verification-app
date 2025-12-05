@@ -81,7 +81,7 @@ module "rds" {
   private_subnet_ids  = module.networking.private_subnet_ids
   security_group_id   = module.networking.rds_security_group_id
 
-  engine_version      = "15.4"
+  engine_version      = "15.14"
   instance_class      = "db.t3.micro"
   allocated_storage   = 20
   max_allocated_storage = 100
@@ -98,7 +98,10 @@ module "rds" {
   deletion_protection   = false
   skip_final_snapshot   = true
 
+   # Performance Insightsは無効化
   performance_insights_enabled = false
+  performance_insights_kms_key_id = null
+  performance_insights_retention_period = null
   enable_cloudwatch_alarms     = true
 
   common_tags = local.common_tags

@@ -81,8 +81,8 @@ module "rds" {
   private_subnet_ids  = module.networking.private_subnet_ids
   security_group_id   = module.networking.rds_security_group_id
 
-  engine_version      = "15.4"
-  instance_class      = "db.t3.small"  # 本番環境はより大きいインスタンス
+  engine_version      = "15.14"
+  instance_class      = "db.t3.micro"  # 本番環境はより大きいインスタンス
   allocated_storage   = 100
   max_allocated_storage = 500
   storage_encrypted   = true
