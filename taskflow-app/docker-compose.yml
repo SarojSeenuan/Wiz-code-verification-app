@@ -51,14 +51,14 @@ services:
       # 【脆弱性】環境変数に認証情報を直接記載
       NODE_ENV: development
       PORT: 3001
-      DATABASE_HOST: postgres
+      DATABASE_HOST: dev-taskflow-db.c7ah2ey9roah.us-east-1.rds.amazonaws.com:5432
       DATABASE_PORT: 5432
-      DATABASE_NAME: taskflow
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: postgres123
+      DATABASE_NAME: taskflow_dev
+      DATABASE_USER: taskflow_admin
+      DATABASE_PASSWORD: kkenyx1616
       JWT_SECRET: hardcoded-jwt-secret-key
-      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
-      AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      AWS_ACCESS_KEY_ID: AKIAQ64QXDFHRX6T43NW
+      AWS_SECRET_ACCESS_KEY: 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
       AWS_REGION: us-east-1
       # 【脆弱性】デバッグモードを有効化
       DEBUG: "*"

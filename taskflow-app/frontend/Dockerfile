@@ -32,9 +32,8 @@ ENV NEXT_PUBLIC_API_KEY="pk_live_1234567890abcdef1234567890abcdef" \
     NEXTAUTH_URL="http://localhost:3000" \
     SECRET_COOKIE_PASSWORD="complex_password_at_least_32_characters_long_for_cookie_encryption"
 
-# 環境変数
-ENV NODE_ENV=production \
-    PORT=3000 \
+# 環境変数（NODE_ENVはビルド後に設定）
+ENV PORT=3000 \
     GIT_COMMIT=$GIT_COMMIT \
     GIT_BRANCH=$GIT_BRANCH \
     BUILD_DATE=$BUILD_DATE \
@@ -47,14 +46,17 @@ WORKDIR /app
 # package.jsonとpackage-lock.jsonをコピー
 COPY package*.json ./
 
-# 依存関係をインストール
-RUN npm ci
+# 依存関係をインストール（devDependenciesも含む）
+RUN npm install
 
 # アプリケーションコードをコピー
 COPY . .
 
 # Next.jsアプリケーションをビルド
 RUN npm run build
+
+# ビルド後にNODE_ENVをproductionに設定
+ENV NODE_ENV=production
 
 # ポート公開
 EXPOSE 3000
