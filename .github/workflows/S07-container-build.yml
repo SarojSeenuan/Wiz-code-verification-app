@@ -54,6 +54,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: 🔍 診断 - 使用中のIAMユーザー確認
+        run: |
+          echo "=== 現在認証されているIAMユーザー ==="
+          aws sts get-caller-identity
+          echo ""
+          echo "=== このユーザーのアタッチされたポリシー ==="
+          CURRENT_USER=$(aws sts get-caller-identity --query 'Arn' --output text | awk -F'/' '{print $NF}')
+          echo "ユーザー名: $CURRENT_USER"
+          aws iam list-attached-user-policies --user-name $CURRENT_USER || echo "管理ポリシー取得失敗"
+          aws iam list-user-policies --user-name $CURRENT_USER || echo "インラインポリシー取得失敗"
+
       - name: Amazon ECRログイン
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
