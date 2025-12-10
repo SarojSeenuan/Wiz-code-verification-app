@@ -1,0 +1,333 @@
+# S07: コンテナトレーサビリティ - Code-to-Cloudメタデータ付きコンテナビルド
+#
+# このワークフローは、Dockerイメージをビルドし、Code-to-Cloudトレーサビリティのための
+# メタデータを付与してECRにプッシュします
+# シナリオS07の検証に使用します
+
+name: S07 - Container Build and Traceability
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  build-and-scan-backend:
+    name: バックエンドコンテナビルド＆スキャン
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャル設定（OIDC）
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Amazon ECRログイン
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Dockerイメージビルド（メタデータ付き）
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            --build-arg GIT_BRANCH=${{ github.ref_name }} \
+            --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+            --build-arg BUILD_ID=${{ github.run_id }} \
+            --build-arg GITHUB_REPOSITORY=${{ github.repository }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            ./backend
+
+      - name: Wiz CLIダウンロード
+        run: |
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: Dockerイメージスキャン
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          wizcli docker scan \
+            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --policy "Default vulnerabilities policy" \
+            --policy-hits-only \
+            --tag "component=backend" \
+            --tag "scan-type=pre-push"
+
+      - name: Code-to-Cloudメタデータタグ付け
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          wizcli docker tag \
+            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --source-repo "${{ github.repository }}" \
+            --source-branch "${{ github.ref_name }}" \
+            --source-commit "${{ github.sha }}" \
+            --ci-build-id "${{ github.run_id }}"
+
+      - name: ECRにイメージプッシュ
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: イメージ情報を出力
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "## バックエンドコンテナビルド完了" > build-info-backend.md
+          echo "" >> build-info-backend.md
+          echo "- リポジトリ: ${{ github.repository }}" >> build-info-backend.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> build-info-backend.md
+          echo "- コミット: ${{ github.sha }}" >> build-info-backend.md
+          echo "- ビルドID: ${{ github.run_id }}" >> build-info-backend.md
+          echo "- イメージ: \`$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\`" >> build-info-backend.md
+          echo "" >> build-info-backend.md
+          echo "WizコンソールでCode-to-Cloudトレーサビリティを確認できます。" >> build-info-backend.md
+
+      - name: ビルド情報をアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-info-backend-${{ github.sha }}
+          path: build-info-backend.md
+
+  build-and-scan-frontend:
+    name: フロントエンドコンテナビルド＆スキャン
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャル設定（OIDC）
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Amazon ECRログイン
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Dockerイメージビルド（メタデータ付き）
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            --build-arg GIT_BRANCH=${{ github.ref_name }} \
+            --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+            --build-arg BUILD_ID=${{ github.run_id }} \
+            --build-arg GITHUB_REPOSITORY=${{ github.repository }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            ./frontend
+
+      - name: Wiz CLIダウンロード
+        run: |
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
+
+      - name: Wiz認証
+        run: |
+          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: Dockerイメージスキャン
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          wizcli docker scan \
+            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --policy "Default vulnerabilities policy" \
+            --policy-hits-only \
+            --tag "component=frontend" \
+            --tag "scan-type=pre-push"
+
+      - name: Code-to-Cloudメタデータタグ付け
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          wizcli docker tag \
+            --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --source-repo "${{ github.repository }}" \
+            --source-branch "${{ github.ref_name }}" \
+            --source-commit "${{ github.sha }}" \
+            --ci-build-id "${{ github.run_id }}"
+
+      - name: ECRにイメージプッシュ
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: イメージ情報を出力
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taskflow-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "## フロントエンドコンテナビルド完了" > build-info-frontend.md
+          echo "" >> build-info-frontend.md
+          echo "- リポジトリ: ${{ github.repository }}" >> build-info-frontend.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> build-info-frontend.md
+          echo "- コミット: ${{ github.sha }}" >> build-info-frontend.md
+          echo "- ビルドID: ${{ github.run_id }}" >> build-info-frontend.md
+          echo "- イメージ: \`$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\`" >> build-info-frontend.md
+          echo "" >> build-info-frontend.md
+          echo "WizコンソールでCode-to-Cloudトレーサビリティを確認できます。" >> build-info-frontend.md
+
+      - name: ビルド情報をアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-info-frontend-${{ github.sha }}
+          path: build-info-frontend.md
+
+  deploy-to-ecs:
+    name: ECSへのデプロイ（本番環境のみ）
+    runs-on: ubuntu-latest
+    needs: [build-and-scan-backend, build-and-scan-frontend]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャル設定（OIDC）
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Amazon ECRログイン
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: バックエンドをECSにデプロイ
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # 既存のタスク定義を取得
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
+            --task-definition taskflow-backend \
+            --query taskDefinition)
+
+          # イメージURIを更新
+          NEW_TASK_DEF=$(echo $TASK_DEFINITION | \
+            jq --arg IMAGE "$ECR_REGISTRY/taskflow-backend:$IMAGE_TAG" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          # 新しいタスク定義を登録
+          NEW_TASK_INFO=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF")
+
+          NEW_REVISION=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.revision')
+
+          # サービスを更新
+          aws ecs update-service \
+            --cluster taskflow-cluster \
+            --service taskflow-backend-service \
+            --task-definition taskflow-backend:$NEW_REVISION \
+            --force-new-deployment
+
+          echo "バックエンドをリビジョン $NEW_REVISION でデプロイしました"
+
+      - name: フロントエンドをECSにデプロイ
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # 既存のタスク定義を取得
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
+            --task-definition taskflow-frontend \
+            --query taskDefinition)
+
+          # イメージURIを更新
+          NEW_TASK_DEF=$(echo $TASK_DEFINITION | \
+            jq --arg IMAGE "$ECR_REGISTRY/taskflow-frontend:$IMAGE_TAG" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          # 新しいタスク定義を登録
+          NEW_TASK_INFO=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF")
+
+          NEW_REVISION=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.revision')
+
+          # サービスを更新
+          aws ecs update-service \
+            --cluster taskflow-cluster \
+            --service taskflow-frontend-service \
+            --task-definition taskflow-frontend:$NEW_REVISION \
+            --force-new-deployment
+
+          echo "フロントエンドをリビジョン $NEW_REVISION でデプロイしました"
+
+      - name: デプロイ完了レポート生成
+        run: |
+          echo "## S07検証: コンテナデプロイ完了" > deployment-report.md
+          echo "" >> deployment-report.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> deployment-report.md
+          echo "- コミット: ${{ github.sha }}" >> deployment-report.md
+          echo "- ビルドID: ${{ github.run_id }}" >> deployment-report.md
+          echo "- デプロイ日時: $(date)" >> deployment-report.md
+          echo "" >> deployment-report.md
+          echo "### トレーサビリティ確認手順" >> deployment-report.md
+          echo "1. Wizコンソールにログイン" >> deployment-report.md
+          echo "2. Inventory → Workloads → ECS Tasks" >> deployment-report.md
+          echo "3. taskflow-backend/frontendタスクを検索" >> deployment-report.md
+          echo "4. Security Graphタブを開く" >> deployment-report.md
+          echo "5. Code Originセクションでソースコードまでの追跡を確認" >> deployment-report.md
+          echo "" >> deployment-report.md
+          echo "詳細はWizコンソールで確認してください。" >> deployment-report.md
+
+      - name: デプロイレポートをアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report-${{ github.sha }}
+          path: deployment-report.md

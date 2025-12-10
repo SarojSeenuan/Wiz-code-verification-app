@@ -1,0 +1,201 @@
+# S04: IaCスキャン - Terraform設定検証ワークフロー
+#
+# このワークフローは、Terraformインフラコードのセキュリティスキャンを実施します
+# シナリオS04の検証に使用します
+
+name: S04 - Wiz IaC Scan
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'taskflow-app/terraform/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'taskflow-app/terraform/**'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  terraform-iac-scan:
+    name: Terraformスキャン
+    runs-on: ubuntu-latest
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Terraformセットアップ
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraformフォーマットチェック
+        run: |
+          terraform fmt -check -recursive taskflow-app/terraform/
+
+      - name: Wiz CLIイメージ取得
+        run: |
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
+
+      - name: Wiz認証
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
+
+      - name: Terraform全体スキャン
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform \
+            --name "terraform-full-${{ github.sha }}" \
+            --tag "environment=all" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "scan-type=iac" \
+            --policy-hits-only
+
+      - name: Terraform Dev環境スキャン
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/dev \
+            --name "terraform-dev-${{ github.sha }}" \
+            --tag "environment=dev" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --policy-hits-only
+
+      - name: Terraform Prod環境スキャン
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/prod \
+            --name "terraform-prod-${{ github.sha }}" \
+            --tag "environment=prod" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --policy-hits-only
+
+      - name: Terraform Vulnerable環境スキャン（検証用）
+        id: vulnerable_scan
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/vulnerable \
+            --name "terraform-vulnerable-${{ github.sha }}" \
+            --tag "environment=vulnerable" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "purpose=security-testing" \
+            --output /scan/vulnerable-iac-results.sarif,sarif \
+            --output /scan/vulnerable-iac-results.json,json \
+            --policy-hits-only
+        continue-on-error: true
+
+      - name: SARIF結果をGitHub Securityにアップロード
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: vulnerable-iac-results.sarif
+          category: wiz-iac-vulnerable
+
+      - name: スキャン結果をArtifactとして保存
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerable-iac-scan-results-${{ github.sha }}
+          path: |
+            vulnerable-iac-results.sarif
+            vulnerable-iac-results.json
+
+      - name: スキャン結果の確認
+        if: steps.vulnerable_scan.outcome == 'failure'
+        run: |
+          echo "❌ Vulnerable環境のスキャンでポリシー違反を検出しました"
+          echo "📊 検出サマリー:"
+          cat vulnerable-iac-results.json | jq '.summary' || echo "No summary available"
+          echo ""
+          echo "🔴 これは期待される動作です（検証用の脆弱な設定）"
+          echo "詳細はGitHub SecurityタブとWizコンソールで確認してください"
+
+  terraform-validation:
+    name: Terraform検証
+    runs-on: ubuntu-latest
+    needs: terraform-iac-scan
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - name: コードチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Terraformセットアップ
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: |
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
+          terraform init -backend=false
+
+      - name: Terraform Validate
+        run: |
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
+          terraform validate
+
+      - name: Terraform Plan（PRの場合のみ）
+        if: github.event_name == 'pull_request'
+        run: |
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
+          terraform plan -no-color
+
+  generate-iac-report:
+    name: IaCレポート生成
+    runs-on: ubuntu-latest
+    needs: [terraform-iac-scan, terraform-validation]
+    if: always()
+    steps:
+      - name: IaCスキャンサマリー出力
+        run: |
+          echo "## S04検証: Terraform IaCスキャン結果" > iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "- ブランチ: ${{ github.ref_name }}" >> iac-scan-summary.md
+          echo "- コミット: ${{ github.sha }}" >> iac-scan-summary.md
+          echo "- スキャン対象: terraform/" >> iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "### スキャン対象モジュール" >> iac-scan-summary.md
+          echo "- ECS" >> iac-scan-summary.md
+          echo "- RDS" >> iac-scan-summary.md
+          echo "- ECR" >> iac-scan-summary.md
+          echo "- Networking" >> iac-scan-summary.md
+          echo "" >> iac-scan-summary.md
+          echo "詳細はWizコンソールで確認してください。" >> iac-scan-summary.md
+
+      - name: レポートをアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: iac-scan-summary-${{ github.sha }}
+          path: iac-scan-summary.md
