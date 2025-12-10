@@ -45,14 +45,21 @@ jobs:
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: SBOM生成（CycloneDX形式）
         run: |
-          wizcli dir scan \
-            --path ./taskflow-app/${{ matrix.component }} \
-            --sbom-output sbom-${{ matrix.component }}-cyclonedx.json \
-            --sbom-format cyclonedx \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest dir scan \
+            --path /scan/taskflow-app/${{ matrix.component }} \
+            --sbom-output-file /scan/sbom-${{ matrix.component }}-cyclonedx.json \
+            --sbom-format cyclonedx-json \
             --name "${{ matrix.component }}-sbom-${{ github.sha }}" \
             --tag "component=${{ matrix.component }}" \
             --tag "format=cyclonedx" \
@@ -61,10 +68,14 @@ jobs:
 
       - name: SBOM生成（SPDX形式）
         run: |
-          wizcli dir scan \
-            --path ./taskflow-app/${{ matrix.component }} \
-            --sbom-output sbom-${{ matrix.component }}-spdx.json \
-            --sbom-format spdx \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest dir scan \
+            --path /scan/taskflow-app/${{ matrix.component }} \
+            --sbom-output-file /scan/sbom-${{ matrix.component }}-spdx.json \
+            --sbom-format spdx-json \
             --name "${{ matrix.component }}-sbom-spdx-${{ github.sha }}" \
             --tag "component=${{ matrix.component }}" \
             --tag "format=spdx"
@@ -114,7 +125,10 @@ jobs:
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: コンテナイメージSBOM生成（CycloneDX）
         env:
@@ -122,10 +136,15 @@ jobs:
           ECR_REPOSITORY: taskflow-${{ matrix.component }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          wizcli docker scan \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest docker scan \
             --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --sbom-output container-sbom-${{ matrix.component }}-cyclonedx.json \
-            --sbom-format cyclonedx \
+            --sbom-output-file /scan/container-sbom-${{ matrix.component }}-cyclonedx.json \
+            --sbom-format cyclonedx-json \
             --tag "component=${{ matrix.component }}" \
             --tag "image-type=container" \
             --tag "format=cyclonedx"
@@ -136,10 +155,15 @@ jobs:
           ECR_REPOSITORY: taskflow-${{ matrix.component }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          wizcli docker scan \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest docker scan \
             --image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --sbom-output container-sbom-${{ matrix.component }}-spdx.json \
-            --sbom-format spdx \
+            --sbom-output-file /scan/container-sbom-${{ matrix.component }}-spdx.json \
+            --sbom-format spdx-json \
             --tag "component=${{ matrix.component }}" \
             --tag "image-type=container" \
             --tag "format=spdx"
@@ -230,7 +254,10 @@ jobs:
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: SBOMバージョン追跡記録
         run: |
