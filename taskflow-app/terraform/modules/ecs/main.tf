@@ -67,10 +67,15 @@ resource "aws_lb" "main" {
 # ALBターゲットグループ - バックエンド
 resource "aws_lb_target_group" "backend" {
   name        = "${var.environment}-taskflow-backend-tg"
-  port        = 3000
+  port        = 3001
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
+
+  # 追加
+  lifecycle {
+    create_before_destroy = true
+  }
 
   health_check {
     enabled             = true
@@ -78,7 +83,7 @@ resource "aws_lb_target_group" "backend" {
     interval            = 30
     matcher             = "200"
     path                = "/health"
-    port                = "traffic-port"
+    port                = "traffic-port"  # これで 3001 を使う
     protocol            = "HTTP"
     timeout             = 5
     unhealthy_threshold = 3
@@ -150,9 +155,9 @@ resource "aws_lb_listener_rule" "backend_api" {
 
   condition {
     path_pattern {
-      values = ["/api/*"]
-    }
+      values = ["/api", "/api/*", "/health"]  
   }
+}
 }
 
 # CloudWatch ロググループ - バックエンド
@@ -214,6 +219,33 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# SSMパラメータアクセス用のポリシー
+resource "aws_iam_role_policy" "ecs_task_execution_ssm" {
+  name = "${var.environment}-ecs-ssm-access"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        Resource = var.database_password_secret_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # IAMロール - ECSタスクロール
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.environment}-taskflow-ecs-task-role"
@@ -257,7 +289,7 @@ resource "aws_ecs_task_definition" "backend" {
 
       portMappings = [
         {
-          containerPort = 3000
+          containerPort = 3001
           protocol      = "tcp"
         }
       ]
@@ -300,7 +332,7 @@ resource "aws_ecs_task_definition" "backend" {
       healthCheck = {
         command = [
           "CMD-SHELL",
-          "curl -f http://localhost:3000/health || exit 1"
+          "curl -f http://localhost:3001/health || exit 1"
         ]
         interval    = 30
         timeout     = 5
@@ -401,7 +433,7 @@ resource "aws_ecs_service" "backend" {
   load_balancer {
     target_group_arn = aws_lb_target_group.backend.arn
     container_name   = "backend"
-    container_port   = 3000
+    container_port   = 3001
   }
 
   depends_on = [aws_lb_listener.http]

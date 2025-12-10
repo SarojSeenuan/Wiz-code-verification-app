@@ -15,7 +15,7 @@ database_name     = "taskflow_dev"
 database_username = "taskflow_admin"
 database_password = "CHANGE_THIS_PASSWORD"  # 本番環境ではSecretsManagerまたは環境変数を使用
 
-database_password_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:dev/taskflow/db-password-XXXXXX"
+database_password_secret_arn = "arn:aws:ssm:us-east-1:066338625871:parameter/kkenyx1616"
 
 backend_image_tag  = "latest"
 frontend_image_tag = "latest"
