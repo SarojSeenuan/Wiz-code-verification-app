@@ -17,6 +17,7 @@ on:
       - master
     paths:
       - "taskflow-app/terraform/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -115,11 +116,20 @@ jobs:
         continue-on-error: true
 
       - name: SARIF結果をGitHub Securityにアップロード
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true
         with:
           sarif_file: vulnerable-iac-results.sarif
           category: wiz-iac-vulnerable
+
+      - name: エビデンスフォルダに結果を保存
+        if: always()
+        run: |
+          mkdir -p evidence/phase1/S04
+          cp vulnerable-iac-results.sarif evidence/phase1/S04/ 2>/dev/null || echo "SARIFファイルが見つかりません"
+          cp vulnerable-iac-results.json evidence/phase1/S04/ 2>/dev/null || echo "JSONファイルが見つかりません"
+          echo "S04検証結果を保存しました: evidence/phase1/S04/"
 
       - name: スキャン結果をArtifactとして保存
         uses: actions/upload-artifact@v4
@@ -129,6 +139,7 @@ jobs:
           path: |
             vulnerable-iac-results.sarif
             vulnerable-iac-results.json
+            evidence/phase1/S04/
 
       - name: スキャン結果の確認
         if: steps.vulnerable_scan.outcome == 'failure'
