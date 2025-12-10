@@ -11,7 +11,8 @@
 # ============================================================
 
 # 古いNode.jsイメージを使用（脆弱性あり）- S03,S07で検出
-FROM node:16.14.0-alpine3.14
+# Node.js 18に更新してNext.js 14と互換性を確保
+FROM node:18-alpine3.18
 
 # メタデータ
 LABEL maintainer="TIS Wiz Team <wiz@example.com>"
