@@ -35,7 +35,8 @@ jobs:
       - name: 依存関係インストール
         run: |
           cd taskflow-app/${{ matrix.component }}
-          npm ci
+          # package-lock.jsonの互換性問題を解決するため、npm installを使用
+          npm install
 
       - name: Wiz CLIダウンロード
         run: |
@@ -80,6 +81,13 @@ jobs:
             --tag "component=${{ matrix.component }}" \
             --tag "format=spdx"
 
+      - name: エビデンスフォルダに結果を保存
+        run: |
+          mkdir -p evidence/phase2/S06
+          cp sbom-${{ matrix.component }}-cyclonedx.json evidence/phase2/S06/ 2>/dev/null || echo "CycloneDX SBOMファイルが見つかりません"
+          cp sbom-${{ matrix.component }}-spdx.json evidence/phase2/S06/ 2>/dev/null || echo "SPDX SBOMファイルが見つかりません"
+          echo "S06検証結果（ソースSBOM）を保存しました: evidence/phase2/S06/"
+
       - name: SBOMアーティファクト保存
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +95,7 @@ jobs:
           path: |
             sbom-${{ matrix.component }}-cyclonedx.json
             sbom-${{ matrix.component }}-spdx.json
+            evidence/phase2/S06/
 
   generate-container-sbom:
     name: コンテナイメージSBOM生成
@@ -168,6 +177,13 @@ jobs:
             --tag "image-type=container" \
             --tag "format=spdx"
 
+      - name: エビデンスフォルダに結果を保存
+        run: |
+          mkdir -p evidence/phase2/S06
+          cp container-sbom-${{ matrix.component }}-cyclonedx.json evidence/phase2/S06/ 2>/dev/null || echo "CycloneDX コンテナSBOMファイルが見つかりません"
+          cp container-sbom-${{ matrix.component }}-spdx.json evidence/phase2/S06/ 2>/dev/null || echo "SPDX コンテナSBOMファイルが見つかりません"
+          echo "S06検証結果（コンテナSBOM）を保存しました: evidence/phase2/S06/"
+
       - name: コンテナSBOMアーティファクト保存
         uses: actions/upload-artifact@v4
         with:
@@ -175,6 +191,7 @@ jobs:
           path: |
             container-sbom-${{ matrix.component }}-cyclonedx.json
             container-sbom-${{ matrix.component }}-spdx.json
+            evidence/phase2/S06/
 
   sbom-analysis:
     name: SBOM分析とレポート生成
