@@ -8,11 +8,11 @@ name: S03 - Wiz Full Scan
 on:
   push:
     branches:
-      - main
+      - master
       - develop
   pull_request:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ permissions:
   actions: read
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
   REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
   IMAGE_NAME_BACKEND: taskflow-backend
   IMAGE_NAME_FRONTEND: taskflow-frontend

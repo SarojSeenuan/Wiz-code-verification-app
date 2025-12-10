@@ -8,15 +8,15 @@ name: S04 - Wiz IaC Scan
 on:
   push:
     branches:
-      - main
+      - master
       - develop
     paths:
-      - 'taskflow-app/terraform/**'
+      - "taskflow-app/terraform/**"
   pull_request:
     branches:
-      - main
+      - master
     paths:
-      - 'taskflow-app/terraform/**'
+      - "taskflow-app/terraform/**"
 
 permissions:
   contents: read

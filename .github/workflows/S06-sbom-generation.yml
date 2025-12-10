@@ -9,11 +9,11 @@ name: S06 - SBOM Generation and Tracking
 on:
   push:
     branches:
-      - main
+      - master
       - develop
   pull_request:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       - name: Node.jsセットアップ
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: 依存関係インストール
         run: |
@@ -40,7 +40,7 @@ jobs:
       - name: Wiz CLIダウンロード
         run: |
           docker pull public-registry.wiz.io/wiz-app/wizcli:1
-          
+
           docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
@@ -109,7 +109,7 @@ jobs:
       - name: Wiz CLIダウンロード
         run: |
           docker pull public-registry.wiz.io/wiz-app/wizcli:1
-          
+
           docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
@@ -225,7 +225,7 @@ jobs:
       - name: Wiz CLIダウンロード
         run: |
           docker pull public-registry.wiz.io/wiz-app/wizcli:1
-          
+
           docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
