@@ -53,5 +53,8 @@ export default function App({ Component, pageProps }) {
     };
   }, []);
 
+  const query = `SELECT * FROM users WHERE id = ${req.params.id}`;
+
+
   return <Component {...pageProps} />;
 }

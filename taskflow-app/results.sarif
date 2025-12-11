@@ -1,0 +1,1605 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Wiz CLI",
+          "informationUri": "https://wiz.io",
+          "name": "WizCLI",
+          "rules": [
+            {
+              "id": "CVE-2022-23540",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2022-23540"
+              },
+              "fullDescription": {
+                "text": "In versions `\u0026lt;=8.5.1` of `jsonwebtoken` library, lack of algorithm definition in the `jwt.verify()` function can lead to signature validation bypass due to defaulting to the `none` algorithm for signature verification. Users are affected if you do not specify algorithms in the `jwt.verify()` function. This issue has been fixed, please update to version 9.0.0 which removes the default support for the none algorithm in the `jwt.verify()` method. There will be no impact, if you update to version 9.0.0 and you don’t need to allow for the `none` algorithm. If you need \u0026#39;none\u0026#39; algorithm, you have to explicitly specify that in `jwt.verify()` options."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-qwph-4952-7xr6",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2022-23541",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2022-23541"
+              },
+              "fullDescription": {
+                "text": "jsonwebtoken is an implementation of JSON Web Tokens. Versions `\u0026lt;= 8.5.1` of `jsonwebtoken` library can be misconfigured so that passing a poorly implemented key retrieval function referring to the `secretOrPublicKey` argument from the readme link will result in incorrect verification of tokens. There is a possibility of using a different algorithm and key combination in verification, other than the one that was used to sign the tokens. Specifically, tokens signed with an asymmetric public key could be verified with a symmetric HS256 algorithm. This can lead to successful validation of  forged tokens. If your application is supporting usage of both symmetric key and asymmetric key in jwt.verify() implementation with the same key retrieval function. This issue has been patched, please update to version 9.0.0."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-hjrf-2m68-5959",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2022-23539",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2022-23539"
+              },
+              "fullDescription": {
+                "text": "Versions `\u0026lt;=8.5.1` of `jsonwebtoken` library could be misconfigured so that legacy, insecure key types are used for signature verification. For example, DSA keys could be used with the RS256 algorithm. You are affected if you are using an algorithm and a key type other than a combination listed in the GitHub Security Advisory as unaffected. This issue has been fixed, please update to version 9.0.0. This version validates for asymmetric key type and algorithm combinations. Please refer to the above mentioned algorithm / key type combinations for the valid secure configuration. After updating to version 9.0.0, if you still intend to continue with signing or verifying tokens using invalid key type/algorithm value combinations, you’ll need to set the `allowInvalidAsymmetricKeyTypes` option  to `true` in the `sign()` and/or `verify()` functions."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8cf7-32gw-wr33",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-45857",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2023-45857"
+              },
+              "fullDescription": {
+                "text": "An issue discovered in Axios 1.5.1 inadvertently reveals the confidential XSRF-TOKEN stored in cookies by including it in the HTTP header X-XSRF-TOKEN for every request made to any host allowing attackers to view sensitive information."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-wf5p-g6vw-rhxx",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2021-3749",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2021-3749"
+              },
+              "fullDescription": {
+                "text": "axios is vulnerable to Inefficient Regular Expression Complexity"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-cph5-m8f7-6c5x",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-27152",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-27152"
+              },
+              "fullDescription": {
+                "text": "axios is a promise based HTTP client for the browser and node.js. The issue occurs when passing absolute URLs rather than protocol-relative URLs to axios. Even if ?baseURL is set, axios sends the request to the specified absolute URL, potentially causing SSRF and credential leakage. This issue impacts both server-side and client-side usage of axios. This issue is fixed in 1.8.2."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-jr5f-v2jv-69x6",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-58754",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-58754"
+              },
+              "fullDescription": {
+                "text": "Axios is a promise based HTTP client for the browser and Node.js. When Axios prior to versions 0.30.2 and 1.12.0 runs on Node.js and is given a URL with the `data:` scheme, it does not perform HTTP. Instead, its Node http adapter decodes the entire payload into memory (`Buffer`/`Blob`) and returns a synthetic 200 response. This path ignores `maxContentLength` / `maxBodyLength` (which only protect HTTP responses), so an attacker can supply a very large `data:` URI and cause the process to allocate unbounded memory and crash (DoS), even if the caller requested `responseType: \u0026#39;stream\u0026#39;`. Versions 0.30.2 and 1.12.0 contain a patch for the issue."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-4hjh-wcwx-xvwj",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2020-28500",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2020-28500"
+              },
+              "fullDescription": {
+                "text": "Lodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-29mw-wpgm-hmr9",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2021-23337",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2021-23337"
+              },
+              "fullDescription": {
+                "text": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2022-24785",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2022-24785"
+              },
+              "fullDescription": {
+                "text": "Moment.js is a JavaScript date library for parsing, validating, manipulating, and formatting dates. A path traversal vulnerability impacts npm (server) users of Moment.js between versions 1.0.1 and 2.29.1, especially if a user-provided locale string is directly used to switch moment locale. This problem is patched in 2.29.2, and the patch can be applied to all affected versions. As a workaround, sanitize the user-provided locale name before passing it to Moment.js."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8hfj-j24r-96c4",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2022-31129",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2022-31129"
+              },
+              "fullDescription": {
+                "text": "moment is a JavaScript date library for parsing, validating, manipulating, and formatting dates. Affected versions of moment were found to use an inefficient parsing algorithm. Specifically using string-to-date parsing in moment (more specifically rfc2822 parsing, which is tried by default) has quadratic (N^2) complexity on specific inputs. Users may notice a noticeable slowdown is observed with inputs above 10k characters. Users who pass user-provided strings without sanity length checks to moment constructor are vulnerable to (Re)DoS attacks. The problem is patched in 2.29.4, the patch can be applied to all affected versions with minimal tweaking. Users are advised to upgrade. Users unable to upgrade should consider limiting date lengths accepted from user input."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-wc69-rhjr-hc9g",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-46298",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2023-46298"
+              },
+              "fullDescription": {
+                "text": "Next.js before 13.4.20-canary.13 lacks a cache-control header and thus empty prefetch responses may sometimes be cached by a CDN, causing a denial of service to all users requesting the same URL via that CDN."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-c59h-r6p8-q9wc",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "2.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "low",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-32421",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-32421"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. Versions prior to 14.2.24 and 15.1.6 have a race-condition vulnerability. This issue only affects the Pages Router under certain misconfigurations, causing normal endpoints to serve `pageProps` data instead of standard HTML. This issue was patched in versions 15.1.6 and 14.2.24 by stripping the `x-now-route-matches` header from incoming requests. Applications hosted on Vercel\u0026#39;s platform are not affected by this issue, as the platform does not cache responses based solely on `200 OK` status without explicit `cache-control` headers. Those who self-host Next.js deployments and are unable to upgrade immediately can mitigate this vulnerability by stripping the `x-now-route-matches` header from all incoming requests at the content development network and setting `cache-control: no-store` for all responses under risk. The maintainers of Next.js strongly recommend only caching responses with explicit cache-control headers."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-qpjv-v59x-3qc4",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "2.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "low",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-48068",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-48068"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. In versions starting from 13.0 to before 14.2.30 and 15.0.0 to before 15.2.2, Next.js may have allowed limited source code exposure when the dev server was running with the App Router enabled. The vulnerability only affects local development environments and requires the user to visit a malicious webpage while npm run dev is active. This issue has been patched in versions 14.2.30 and 15.2.2."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-3h52-269p-cp9r",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "2.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "low"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-47831",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-47831"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React Framework for the Web. Cersions on the 10.x, 11.x, 12.x, 13.x, and 14.x branches before version 14.2.7 contain a vulnerability in the image optimization feature which allows for a potential Denial of Service (DoS) condition which could lead to excessive CPU consumption. Neither the `next.config.js` file that is configured with `images.unoptimized` set to `true` or `images.loader` set to a non-default value nor the Next.js application that is hosted on Vercel are affected. This issue was fully patched in Next.js `14.2.7`. As a workaround, ensure that the `next.config.js` file has either `images.unoptimized`, `images.loader` or `images.loaderFile` assigned."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-g77x-44xx-532m",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-56332",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-56332"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. Starting in version 13.0.0 and prior to versions 13.5.8, 14.2.21, and 15.1.2, Next.js is vulnerable to a Denial of Service (DoS) attack that allows attackers to construct requests that leaves requests to Server Actions hanging until the hosting provider cancels the function execution. This vulnerability can also be used as a Denial of Wallet (DoW) attack when deployed in providers billing by response times. (Note: Next.js server is idle during that time and only keeps the connection open. CPU and memory footprint are low during that time.). Deployments without any protection against long running Server Action invocations are especially vulnerable. Hosting providers like Vercel or Netlify set a default maximum duration on function execution to reduce the risk of excessive billing. This is the same issue as if the incoming HTTP request has an invalid `Content-Length` header or never closes. If the host has no other mitigations to those then this vulnerability is novel. This vulnerability affects only Next.js deployments using Server Actions. The issue was resolved in Next.js 13.5.8, 14.2.21, and 15.1.2. We recommend that users upgrade to a safe version. There are no official workarounds."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-7m27-7ghc-44w9",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-55173",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-55173"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization is vulnerable to content injection. The issue allowed attacker-controlled external image sources to trigger file downloads with arbitrary content and filenames under specific configurations. This behavior could be abused for phishing or malicious file delivery. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-xv57-4mr9-wg8v",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-57752",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-57752"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization API routes are affected by cache key confusion. When images returned from API routes vary based on request headers (such as Cookie or Authorization), these responses could be incorrectly cached and served to unauthorized users due to a cache key confusion bug. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5. All users are encouraged to upgrade if they use API routes to serve images that depend on request headers and have image optimization enabled."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-g5qg-72qw-gw5v",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-57822",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-57822"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. Prior to versions 14.2.32 and 15.4.7, when next() was used without explicitly passing the request object, it could lead to SSRF in self-hosted applications that incorrectly forwarded user-supplied headers. This vulnerability has been fixed in Next.js versions 14.2.32 and 15.4.7. All users implementing custom middleware logic in self-hosted environments are strongly encouraged to upgrade and verify correct usage of the next() function."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-4342-x723-ch2f",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-34350",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-34350"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework that can provide building blocks to create web applications. Prior to 13.5.1, an inconsistent interpretation of a crafted HTTP request meant that requests are treated as both a single request, and two separate requests by Next.js, leading to desynchronized responses. This led to a response queue poisoning vulnerability in the affected Next.js versions. For a request to be exploitable, the affected route also had to be making use of the [rewrites](https://nextjs.org/docs/app/api-reference/next-config-js/rewrites) feature in Next.js. The vulnerability is resolved in Next.js `13.5.1` and newer."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-77r5-gw3j-2mpf",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-34351",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-34351"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework that can provide building blocks to create web applications. A Server-Side Request Forgery (SSRF) vulnerability was identified in Next.js Server Actions. If the `Host` header is modified, and the below conditions are also met, an attacker may be able to make requests that appear to be originating from the Next.js application server itself. The required conditions are 1) Next.js is running in a self-hosted manner; 2) the Next.js application makes use of Server Actions; and 3) the Server Action performs a redirect to a relative path which starts with a `/`. This vulnerability was fixed in Next.js `14.1.1`."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-fr5h-rqp8-mj6g",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-39693",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-39693"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework. A Denial of Service (DoS) condition was identified in Next.js. Exploitation of the bug can trigger a crash, affecting the availability of the server. his vulnerability was resolved in Next.js 13.5 and later."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-fq54-2j52-jc42",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-51479",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-51479"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. In affected versions if a Next.js application is performing authorization in middleware based on pathname, it was possible for this authorization to be bypassed for pages directly under the application\u0026#39;s root directory. For example: * [Not affected] `https://example.com/` * [Affected] `https://example.com/foo` * [Not affected] `https://example.com/foo/bar`. This issue is patched in Next.js `14.2.15` and later. If your Next.js application is hosted on Vercel, this vulnerability has been automatically mitigated, regardless of Next.js version. There are no official workarounds for this vulnerability."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-7gfc-8cq8-jh5f",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "high",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-29927",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2025-29927"
+              },
+              "fullDescription": {
+                "text": "Next.js is a React framework for building full-stack web applications. Prior to 14.2.25 and 15.2.3, it is possible to bypass authorization checks within a Next.js application, if the authorization check occurs in middleware. If patching to a safe version is infeasible, it is recommend that you prevent external user requests which contain the x-middleware-subrequest header from reaching your Next.js application. This vulnerability is fixed in 14.2.25 and 15.2.3."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-f82v-jwr5-mffw",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "9.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "critical",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-44270",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2023-44270"
+              },
+              "fullDescription": {
+                "text": "An issue was discovered in PostCSS before 8.4.31. The vulnerability affects linters using PostCSS to parse external untrusted CSS. An attacker can prepare CSS in such a way that it will contains parts parsed by PostCSS as a CSS comment. After processing by PostCSS, it will be included in the PostCSS output in CSS nodes (rules, properties) despite being included in a comment."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-7fh5-64p2-3v2j",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-4316",
+              "name": "Library vulnerability",
+              "shortDescription": {
+                "text": "CVE-2023-4316"
+              },
+              "fullDescription": {
+                "text": "Zod in versions 3.21.0 up to and including 3.22.3 allows an attacker to perform a denial of service while validating emails."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-m95q-7qp3-xv42",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium",
+                  "has-exploit"
+                ]
+              }
+            },
+            {
+              "id": "EOL-TECHNOLOGY",
+              "name": "Technology vulnerability",
+              "shortDescription": {
+                "text": "EOL-TECHNOLOGY"
+              },
+              "fullDescription": {
+                "text": "End-of-Life versions of technologies have no further official support by the vendor and thus no security patches. Furthermore, newly discovered vulnerabilities are not reported. Thus, such technologies pose a threat that is both unknown and will not be fixed."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "4.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "medium"
+                ]
+              }
+            },
+            {
+              "id": "SECRET-SYSTEM-1",
+              "name": "Secret",
+              "shortDescription": {
+                "text": "AWS Access Key (AccessKeyId=AKIAQ64QXDFHRX6T43NW)"
+              },
+              "fullDescription": {
+                "text": "AWS Access Key (AccessKeyId=AKIAQ64QXDFHRX6T43NW)"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "secret",
+                  "security",
+                  "high"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2022-23540",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2022-23540\nSeverity: MEDIUM\nComponent: jsonwebtoken\nType: Library vulnerability\nVersion: 8.5.1\nFixed version: 9.0.0\nSource: [CVE-2022-23540](https://github.com/advisories/GHSA-qwph-4952-7xr6)\nDescription: In versions `\u003c=8.5.1` of `jsonwebtoken` library, lack of algorithm definition in the `jwt.verify()` function can lead to signature validation bypass due to defaulting to the `none` algorithm for signature verification. Users are affected if you do not specify algorithms in the `jwt.verify()` function. This issue has been fixed, please update to version 9.0.0 which removes the default support for the none algorithm in the `jwt.verify()` method. There will be no impact, if you update to version 9.0.0 and you don’t need to allow for the `none` algorithm. If you need 'none' algorithm, you have to explicitly specify that in `jwt.verify()` options.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `jsonwebtoken` version `8.5.1`\n- Vulnerable to [**`CVE-2022-23540`**](https://github.com/advisories/GHSA-qwph-4952-7xr6)\n- Fixed version: `9.0.0`\n### 🔍 Overview\nIn versions `\u003c=8.5.1` of `jsonwebtoken` library, lack of algorithm definition in the `jwt.verify()` function can lead to signature validation bypass due to defaulting to the `none` algorithm for signature verification. Users are affected if you do not specify algorithms in the `jwt.verify()` function. This issue has been fixed, please update to version 9.0.0 which removes the default support for the none algorithm in the `jwt.verify()` method. There will be no impact, if you update to version 9.0.0 and you don’t need to allow for the `none` algorithm. If you need 'none' algorithm, you have to explicitly specify that in `jwt.verify()` options.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-qwph-4952-7xr6)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27651bad29-7509-5c0b-bfb3-6c38b88a3034*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-23540))~cve~%27CVE-2022-23540))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/backend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/backend/package-lock.json: jsonwebtoken@8.5.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-23541",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2022-23541\nSeverity: MEDIUM\nComponent: jsonwebtoken\nType: Library vulnerability\nVersion: 8.5.1\nFixed version: 9.0.0\nSource: [CVE-2022-23541](https://github.com/advisories/GHSA-hjrf-2m68-5959)\nDescription: jsonwebtoken is an implementation of JSON Web Tokens. Versions `\u003c= 8.5.1` of `jsonwebtoken` library can be misconfigured so that passing a poorly implemented key retrieval function referring to the `secretOrPublicKey` argument from the readme link will result in incorrect verification of tokens. There is a possibility of using a different algorithm and key combination in verification, other than the one that was used to sign the tokens. Specifically, tokens signed with an asymmetric public key could be verified with a symmetric HS256 algorithm. This can lead to successful validation of  forged tokens. If your application is supporting usage of both symmetric key and asymmetric key in jwt.verify() implementation with the same key retrieval function. This issue has been patched, please update to version 9.0.0.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `jsonwebtoken` version `8.5.1`\n- Vulnerable to [**`CVE-2022-23541`**](https://github.com/advisories/GHSA-hjrf-2m68-5959)\n- Fixed version: `9.0.0`\n### 🔍 Overview\njsonwebtoken is an implementation of JSON Web Tokens. Versions `\u003c= 8.5.1` of `jsonwebtoken` library can be misconfigured so that passing a poorly implemented key retrieval function referring to the `secretOrPublicKey` argument from the readme link will result in incorrect verification of tokens. There is a possibility of using a different algorithm and key combination in verification, other than the one that was used to sign the tokens. Specifically, tokens signed with an asymmetric public key could be verified with a symmetric HS256 algorithm. This can lead to successful validation of  forged tokens. If your application is supporting usage of both symmetric key and asymmetric key in jwt.verify() implementation with the same key retrieval function. This issue has been patched, please update to version 9.0.0.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-hjrf-2m68-5959)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%2770060716-2043-5dcf-b50e-a6363118b06d*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-23541))~cve~%27CVE-2022-23541))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/backend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/backend/package-lock.json: jsonwebtoken@8.5.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-23539",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2022-23539\nSeverity: HIGH\nComponent: jsonwebtoken\nType: Library vulnerability\nVersion: 8.5.1\nFixed version: 9.0.0\nSource: [CVE-2022-23539](https://github.com/advisories/GHSA-8cf7-32gw-wr33)\nDescription: Versions `\u003c=8.5.1` of `jsonwebtoken` library could be misconfigured so that legacy, insecure key types are used for signature verification. For example, DSA keys could be used with the RS256 algorithm. You are affected if you are using an algorithm and a key type other than a combination listed in the GitHub Security Advisory as unaffected. This issue has been fixed, please update to version 9.0.0. This version validates for asymmetric key type and algorithm combinations. Please refer to the above mentioned algorithm / key type combinations for the valid secure configuration. After updating to version 9.0.0, if you still intend to continue with signing or verifying tokens using invalid key type/algorithm value combinations, you’ll need to set the `allowInvalidAsymmetricKeyTypes` option  to `true` in the `sign()` and/or `verify()` functions.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `jsonwebtoken` version `8.5.1`\n- Vulnerable to [**`CVE-2022-23539`**](https://github.com/advisories/GHSA-8cf7-32gw-wr33)\n- Fixed version: `9.0.0`\n### 🔍 Overview\nVersions `\u003c=8.5.1` of `jsonwebtoken` library could be misconfigured so that legacy, insecure key types are used for signature verification. For example, DSA keys could be used with the RS256 algorithm. You are affected if you are using an algorithm and a key type other than a combination listed in the GitHub Security Advisory as unaffected. This issue has been fixed, please update to version 9.0.0. This version validates for asymmetric key type and algorithm combinations. Please refer to the above mentioned algorithm / key type combinations for the valid secure configuration. After updating to version 9.0.0, if you still intend to continue with signing or verifying tokens using invalid key type/algorithm value combinations, you’ll need to set the `allowInvalidAsymmetricKeyTypes` option  to `true` in the `sign()` and/or `verify()` functions.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-8cf7-32gw-wr33)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%272039a519-f6f7-5695-9fe5-a50c01a7ff8a*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-23539))~cve~%27CVE-2022-23539))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/backend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/backend/package-lock.json: jsonwebtoken@8.5.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-45857",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2023-45857\nSeverity: MEDIUM\nComponent: axios\nType: Library vulnerability\nVersion: 0.21.1\nFixed version: 0.28.0\nSource: [CVE-2023-45857](https://github.com/advisories/GHSA-wf5p-g6vw-rhxx)\nDescription: An issue discovered in Axios 1.5.1 inadvertently reveals the confidential XSRF-TOKEN stored in cookies by including it in the HTTP header X-XSRF-TOKEN for every request made to any host allowing attackers to view sensitive information.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `axios` version `0.21.1`\n- Vulnerable to [**`CVE-2023-45857`**](https://github.com/advisories/GHSA-wf5p-g6vw-rhxx)\n- Fixed version: `0.28.0`\n### 🔍 Overview\nAn issue discovered in Axios 1.5.1 inadvertently reveals the confidential XSRF-TOKEN stored in cookies by including it in the HTTP header X-XSRF-TOKEN for every request made to any host allowing attackers to view sensitive information.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-wf5p-g6vw-rhxx)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27f0d7c493-d8e8-5e20-b530-b3fe96e8b212*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2023-45857))~cve~%27CVE-2023-45857))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: axios@0.21.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-3749",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2021-3749\nSeverity: HIGH\nComponent: axios\nType: Library vulnerability\nVersion: 0.21.1\nFixed version: 0.21.2\nSource: [CVE-2021-3749](https://github.com/advisories/GHSA-cph5-m8f7-6c5x)\nDescription: axios is vulnerable to Inefficient Regular Expression Complexity",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `axios` version `0.21.1`\n- Vulnerable to [**`CVE-2021-3749`**](https://github.com/advisories/GHSA-cph5-m8f7-6c5x)\n- Fixed version: `0.21.2`\n### 🔍 Overview\naxios is vulnerable to Inefficient Regular Expression Complexity\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-cph5-m8f7-6c5x)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27dc87717c-0f29-5058-9feb-617a3d31f3fa*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2021-3749))~cve~%27CVE-2021-3749))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: axios@0.21.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-27152",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2025-27152\nSeverity: HIGH\nComponent: axios\nType: Library vulnerability\nVersion: 0.21.1\nFixed version: 0.30.0\nSource: [CVE-2025-27152](https://github.com/advisories/GHSA-jr5f-v2jv-69x6)\nDescription: axios is a promise based HTTP client for the browser and node.js. The issue occurs when passing absolute URLs rather than protocol-relative URLs to axios. Even if ?baseURL is set, axios sends the request to the specified absolute URL, potentially causing SSRF and credential leakage. This issue impacts both server-side and client-side usage of axios. This issue is fixed in 1.8.2.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `axios` version `0.21.1`\n- Vulnerable to [**`CVE-2025-27152`**](https://github.com/advisories/GHSA-jr5f-v2jv-69x6)\n- Fixed version: `0.30.0`\n### 🔍 Overview\naxios is a promise based HTTP client for the browser and node.js. The issue occurs when passing absolute URLs rather than protocol-relative URLs to axios. Even if ?baseURL is set, axios sends the request to the specified absolute URL, potentially causing SSRF and credential leakage. This issue impacts both server-side and client-side usage of axios. This issue is fixed in 1.8.2.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-jr5f-v2jv-69x6)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27d92f1d59-9c93-5ed7-89d2-fb75e1f26761*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-27152))~cve~%27CVE-2025-27152))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: axios@0.21.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-58754",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2025-58754\nSeverity: HIGH\nComponent: axios\nType: Library vulnerability\nVersion: 0.21.1\nFixed version: 0.30.2\nSource: [CVE-2025-58754](https://github.com/advisories/GHSA-4hjh-wcwx-xvwj)\nDescription: Axios is a promise based HTTP client for the browser and Node.js. When Axios prior to versions 0.30.2 and 1.12.0 runs on Node.js and is given a URL with the `data:` scheme, it does not perform HTTP. Instead, its Node http adapter decodes the entire payload into memory (`Buffer`/`Blob`) and returns a synthetic 200 response. This path ignores `maxContentLength` / `maxBodyLength` (which only protect HTTP responses), so an attacker can supply a very large `data:` URI and cause the process to allocate unbounded memory and crash (DoS), even if the caller requested `responseType: 'stream'`. Versions 0.30.2 and 1.12.0 contain a patch for the issue.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `axios` version `0.21.1`\n- Vulnerable to [**`CVE-2025-58754`**](https://github.com/advisories/GHSA-4hjh-wcwx-xvwj)\n- Fixed version: `0.30.2`\n### 🔍 Overview\nAxios is a promise based HTTP client for the browser and Node.js. When Axios prior to versions 0.30.2 and 1.12.0 runs on Node.js and is given a URL with the `data:` scheme, it does not perform HTTP. Instead, its Node http adapter decodes the entire payload into memory (`Buffer`/`Blob`) and returns a synthetic 200 response. This path ignores `maxContentLength` / `maxBodyLength` (which only protect HTTP responses), so an attacker can supply a very large `data:` URI and cause the process to allocate unbounded memory and crash (DoS), even if the caller requested `responseType: 'stream'`. Versions 0.30.2 and 1.12.0 contain a patch for the issue.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-4hjh-wcwx-xvwj)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27b4934362-421e-5a3b-8f7c-c2a9ca1c90ae*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-58754))~cve~%27CVE-2025-58754))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: axios@0.21.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2020-28500",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2020-28500\nSeverity: MEDIUM\nComponent: lodash\nType: Library vulnerability\nVersion: 4.17.19\nFixed version: 4.17.21\nSource: [CVE-2020-28500](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\nDescription: Lodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `lodash` version `4.17.19`\n- Vulnerable to [**`CVE-2020-28500`**](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\n- Fixed version: `4.17.21`\n### 🔍 Overview\nLodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27e9b3161f-1078-58f3-b628-4c6cffc78274*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2020-28500))~cve~%27CVE-2020-28500))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: lodash@4.17.19"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-23337",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2021-23337\nSeverity: HIGH\nComponent: lodash\nType: Library vulnerability\nVersion: 4.17.19\nFixed version: 4.17.21\nSource: [CVE-2021-23337](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\nDescription: Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `lodash` version `4.17.19`\n- Vulnerable to [**`CVE-2021-23337`**](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\n- Fixed version: `4.17.21`\n### 🔍 Overview\nLodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27bac59250-c50f-59bd-859c-df04be386bf5*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2021-23337))~cve~%27CVE-2021-23337))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: lodash@4.17.19"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-24785",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2022-24785\nSeverity: HIGH\nComponent: moment\nType: Library vulnerability\nVersion: 2.29.1\nFixed version: 2.29.2\nSource: [CVE-2022-24785](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\nDescription: Moment.js is a JavaScript date library for parsing, validating, manipulating, and formatting dates. A path traversal vulnerability impacts npm (server) users of Moment.js between versions 1.0.1 and 2.29.1, especially if a user-provided locale string is directly used to switch moment locale. This problem is patched in 2.29.2, and the patch can be applied to all affected versions. As a workaround, sanitize the user-provided locale name before passing it to Moment.js.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `moment` version `2.29.1`\n- Vulnerable to [**`CVE-2022-24785`**](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\n- Fixed version: `2.29.2`\n### 🔍 Overview\nMoment.js is a JavaScript date library for parsing, validating, manipulating, and formatting dates. A path traversal vulnerability impacts npm (server) users of Moment.js between versions 1.0.1 and 2.29.1, especially if a user-provided locale string is directly used to switch moment locale. This problem is patched in 2.29.2, and the patch can be applied to all affected versions. As a workaround, sanitize the user-provided locale name before passing it to Moment.js.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%279999172e-34d9-58b8-9799-1d03e144370b*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-24785))~cve~%27CVE-2022-24785))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: moment@2.29.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-31129",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2022-31129\nSeverity: HIGH\nComponent: moment\nType: Library vulnerability\nVersion: 2.29.1\nFixed version: 2.29.4\nSource: [CVE-2022-31129](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\nDescription: moment is a JavaScript date library for parsing, validating, manipulating, and formatting dates. Affected versions of moment were found to use an inefficient parsing algorithm. Specifically using string-to-date parsing in moment (more specifically rfc2822 parsing, which is tried by default) has quadratic (N^2) complexity on specific inputs. Users may notice a noticeable slowdown is observed with inputs above 10k characters. Users who pass user-provided strings without sanity length checks to moment constructor are vulnerable to (Re)DoS attacks. The problem is patched in 2.29.4, the patch can be applied to all affected versions with minimal tweaking. Users are advised to upgrade. Users unable to upgrade should consider limiting date lengths accepted from user input.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `moment` version `2.29.1`\n- Vulnerable to [**`CVE-2022-31129`**](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\n- Fixed version: `2.29.4`\n### 🔍 Overview\nmoment is a JavaScript date library for parsing, validating, manipulating, and formatting dates. Affected versions of moment were found to use an inefficient parsing algorithm. Specifically using string-to-date parsing in moment (more specifically rfc2822 parsing, which is tried by default) has quadratic (N^2) complexity on specific inputs. Users may notice a noticeable slowdown is observed with inputs above 10k characters. Users who pass user-provided strings without sanity length checks to moment constructor are vulnerable to (Re)DoS attacks. The problem is patched in 2.29.4, the patch can be applied to all affected versions with minimal tweaking. Users are advised to upgrade. Users unable to upgrade should consider limiting date lengths accepted from user input.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27fc3e8b75-d894-54b4-921e-c9c39499e412*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-31129))~cve~%27CVE-2022-31129))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: moment@2.29.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-46298",
+          "ruleIndex": 11,
+          "level": "note",
+          "message": {
+            "text": "Name: CVE-2023-46298\nSeverity: LOW\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 13.4.20-canary.13\nSource: [CVE-2023-46298](https://github.com/advisories/GHSA-c59h-r6p8-q9wc)\nDescription: Next.js before 13.4.20-canary.13 lacks a cache-control header and thus empty prefetch responses may sometimes be cached by a CDN, causing a denial of service to all users requesting the same URL via that CDN.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2023-46298`**](https://github.com/advisories/GHSA-c59h-r6p8-q9wc)\n- Fixed version: `13.4.20-canary.13`\n### 🔍 Overview\nNext.js before 13.4.20-canary.13 lacks a cache-control header and thus empty prefetch responses may sometimes be cached by a CDN, causing a denial of service to all users requesting the same URL via that CDN.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-c59h-r6p8-q9wc)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%277e3dadaa-28dc-5f51-9fa2-f9b9ee682c86*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2023-46298))~cve~%27CVE-2023-46298))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-32421",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Name: CVE-2025-32421\nSeverity: LOW\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.24\nSource: [CVE-2025-32421](https://github.com/advisories/GHSA-qpjv-v59x-3qc4)\nDescription: Next.js is a React framework for building full-stack web applications. Versions prior to 14.2.24 and 15.1.6 have a race-condition vulnerability. This issue only affects the Pages Router under certain misconfigurations, causing normal endpoints to serve `pageProps` data instead of standard HTML. This issue was patched in versions 15.1.6 and 14.2.24 by stripping the `x-now-route-matches` header from incoming requests. Applications hosted on Vercel's platform are not affected by this issue, as the platform does not cache responses based solely on `200 OK` status without explicit `cache-control` headers. Those who self-host Next.js deployments and are unable to upgrade immediately can mitigate this vulnerability by stripping the `x-now-route-matches` header from all incoming requests at the content development network and setting `cache-control: no-store` for all responses under risk. The maintainers of Next.js strongly recommend only caching responses with explicit cache-control headers.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-32421`**](https://github.com/advisories/GHSA-qpjv-v59x-3qc4)\n- Fixed version: `14.2.24`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. Versions prior to 14.2.24 and 15.1.6 have a race-condition vulnerability. This issue only affects the Pages Router under certain misconfigurations, causing normal endpoints to serve `pageProps` data instead of standard HTML. This issue was patched in versions 15.1.6 and 14.2.24 by stripping the `x-now-route-matches` header from incoming requests. Applications hosted on Vercel's platform are not affected by this issue, as the platform does not cache responses based solely on `200 OK` status without explicit `cache-control` headers. Those who self-host Next.js deployments and are unable to upgrade immediately can mitigate this vulnerability by stripping the `x-now-route-matches` header from all incoming requests at the content development network and setting `cache-control: no-store` for all responses under risk. The maintainers of Next.js strongly recommend only caching responses with explicit cache-control headers.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-qpjv-v59x-3qc4)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27161c3141-564f-5036-bda2-ab491efc0f98*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-32421))~cve~%27CVE-2025-32421))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-48068",
+          "ruleIndex": 13,
+          "level": "note",
+          "message": {
+            "text": "Name: CVE-2025-48068\nSeverity: LOW\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.30\nSource: [CVE-2025-48068](https://github.com/advisories/GHSA-3h52-269p-cp9r)\nDescription: Next.js is a React framework for building full-stack web applications. In versions starting from 13.0 to before 14.2.30 and 15.0.0 to before 15.2.2, Next.js may have allowed limited source code exposure when the dev server was running with the App Router enabled. The vulnerability only affects local development environments and requires the user to visit a malicious webpage while npm run dev is active. This issue has been patched in versions 14.2.30 and 15.2.2.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-48068`**](https://github.com/advisories/GHSA-3h52-269p-cp9r)\n- Fixed version: `14.2.30`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. In versions starting from 13.0 to before 14.2.30 and 15.0.0 to before 15.2.2, Next.js may have allowed limited source code exposure when the dev server was running with the App Router enabled. The vulnerability only affects local development environments and requires the user to visit a malicious webpage while npm run dev is active. This issue has been patched in versions 14.2.30 and 15.2.2.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-3h52-269p-cp9r)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27013a83ce-2f43-55fe-a092-4d80272f488a*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-48068))~cve~%27CVE-2025-48068))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-47831",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2024-47831\nSeverity: MEDIUM\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.7\nSource: [CVE-2024-47831](https://github.com/advisories/GHSA-g77x-44xx-532m)\nDescription: Next.js is a React Framework for the Web. Cersions on the 10.x, 11.x, 12.x, 13.x, and 14.x branches before version 14.2.7 contain a vulnerability in the image optimization feature which allows for a potential Denial of Service (DoS) condition which could lead to excessive CPU consumption. Neither the `next.config.js` file that is configured with `images.unoptimized` set to `true` or `images.loader` set to a non-default value nor the Next.js application that is hosted on Vercel are affected. This issue was fully patched in Next.js `14.2.7`. As a workaround, ensure that the `next.config.js` file has either `images.unoptimized`, `images.loader` or `images.loaderFile` assigned.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-47831`**](https://github.com/advisories/GHSA-g77x-44xx-532m)\n- Fixed version: `14.2.7`\n### 🔍 Overview\nNext.js is a React Framework for the Web. Cersions on the 10.x, 11.x, 12.x, 13.x, and 14.x branches before version 14.2.7 contain a vulnerability in the image optimization feature which allows for a potential Denial of Service (DoS) condition which could lead to excessive CPU consumption. Neither the `next.config.js` file that is configured with `images.unoptimized` set to `true` or `images.loader` set to a non-default value nor the Next.js application that is hosted on Vercel are affected. This issue was fully patched in Next.js `14.2.7`. As a workaround, ensure that the `next.config.js` file has either `images.unoptimized`, `images.loader` or `images.loaderFile` assigned.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-g77x-44xx-532m)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27ff6bd36d-d195-5cd3-ae2d-49dd6f2771ec*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-47831))~cve~%27CVE-2024-47831))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-56332",
+          "ruleIndex": 15,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2024-56332\nSeverity: MEDIUM\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 13.5.8\nSource: [CVE-2024-56332](https://github.com/advisories/GHSA-7m27-7ghc-44w9)\nDescription: Next.js is a React framework for building full-stack web applications. Starting in version 13.0.0 and prior to versions 13.5.8, 14.2.21, and 15.1.2, Next.js is vulnerable to a Denial of Service (DoS) attack that allows attackers to construct requests that leaves requests to Server Actions hanging until the hosting provider cancels the function execution. This vulnerability can also be used as a Denial of Wallet (DoW) attack when deployed in providers billing by response times. (Note: Next.js server is idle during that time and only keeps the connection open. CPU and memory footprint are low during that time.). Deployments without any protection against long running Server Action invocations are especially vulnerable. Hosting providers like Vercel or Netlify set a default maximum duration on function execution to reduce the risk of excessive billing. This is the same issue as if the incoming HTTP request has an invalid `Content-Length` header or never closes. If the host has no other mitigations to those then this vulnerability is novel. This vulnerability affects only Next.js deployments using Server Actions. The issue was resolved in Next.js 13.5.8, 14.2.21, and 15.1.2. We recommend that users upgrade to a safe version. There are no official workarounds.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-56332`**](https://github.com/advisories/GHSA-7m27-7ghc-44w9)\n- Fixed version: `13.5.8`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. Starting in version 13.0.0 and prior to versions 13.5.8, 14.2.21, and 15.1.2, Next.js is vulnerable to a Denial of Service (DoS) attack that allows attackers to construct requests that leaves requests to Server Actions hanging until the hosting provider cancels the function execution. This vulnerability can also be used as a Denial of Wallet (DoW) attack when deployed in providers billing by response times. (Note: Next.js server is idle during that time and only keeps the connection open. CPU and memory footprint are low during that time.). Deployments without any protection against long running Server Action invocations are especially vulnerable. Hosting providers like Vercel or Netlify set a default maximum duration on function execution to reduce the risk of excessive billing. This is the same issue as if the incoming HTTP request has an invalid `Content-Length` header or never closes. If the host has no other mitigations to those then this vulnerability is novel. This vulnerability affects only Next.js deployments using Server Actions. The issue was resolved in Next.js 13.5.8, 14.2.21, and 15.1.2. We recommend that users upgrade to a safe version. There are no official workarounds.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-7m27-7ghc-44w9)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27dc4f0cc3-bb5f-55e5-910d-70d236402889*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-56332))~cve~%27CVE-2024-56332))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-55173",
+          "ruleIndex": 16,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2025-55173\nSeverity: MEDIUM\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.31\nSource: [CVE-2025-55173](https://github.com/advisories/GHSA-xv57-4mr9-wg8v)\nDescription: Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization is vulnerable to content injection. The issue allowed attacker-controlled external image sources to trigger file downloads with arbitrary content and filenames under specific configurations. This behavior could be abused for phishing or malicious file delivery. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-55173`**](https://github.com/advisories/GHSA-xv57-4mr9-wg8v)\n- Fixed version: `14.2.31`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization is vulnerable to content injection. The issue allowed attacker-controlled external image sources to trigger file downloads with arbitrary content and filenames under specific configurations. This behavior could be abused for phishing or malicious file delivery. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-xv57-4mr9-wg8v)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%2796a8f0ce-b2c8-5764-b2c7-f42c354fec45*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-55173))~cve~%27CVE-2025-55173))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-57752",
+          "ruleIndex": 17,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2025-57752\nSeverity: MEDIUM\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.31\nSource: [CVE-2025-57752](https://github.com/advisories/GHSA-g5qg-72qw-gw5v)\nDescription: Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization API routes are affected by cache key confusion. When images returned from API routes vary based on request headers (such as Cookie or Authorization), these responses could be incorrectly cached and served to unauthorized users due to a cache key confusion bug. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5. All users are encouraged to upgrade if they use API routes to serve images that depend on request headers and have image optimization enabled.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-57752`**](https://github.com/advisories/GHSA-g5qg-72qw-gw5v)\n- Fixed version: `14.2.31`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization API routes are affected by cache key confusion. When images returned from API routes vary based on request headers (such as Cookie or Authorization), these responses could be incorrectly cached and served to unauthorized users due to a cache key confusion bug. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5. All users are encouraged to upgrade if they use API routes to serve images that depend on request headers and have image optimization enabled.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-g5qg-72qw-gw5v)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27783b7784-8cf1-5bca-805f-6371cd26dbb6*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-57752))~cve~%27CVE-2025-57752))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-57822",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2025-57822\nSeverity: MEDIUM\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.32\nSource: [CVE-2025-57822](https://github.com/advisories/GHSA-4342-x723-ch2f)\nDescription: Next.js is a React framework for building full-stack web applications. Prior to versions 14.2.32 and 15.4.7, when next() was used without explicitly passing the request object, it could lead to SSRF in self-hosted applications that incorrectly forwarded user-supplied headers. This vulnerability has been fixed in Next.js versions 14.2.32 and 15.4.7. All users implementing custom middleware logic in self-hosted environments are strongly encouraged to upgrade and verify correct usage of the next() function.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-57822`**](https://github.com/advisories/GHSA-4342-x723-ch2f)\n- Fixed version: `14.2.32`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. Prior to versions 14.2.32 and 15.4.7, when next() was used without explicitly passing the request object, it could lead to SSRF in self-hosted applications that incorrectly forwarded user-supplied headers. This vulnerability has been fixed in Next.js versions 14.2.32 and 15.4.7. All users implementing custom middleware logic in self-hosted environments are strongly encouraged to upgrade and verify correct usage of the next() function.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-4342-x723-ch2f)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%2729967050-6c0a-5eb0-9f6a-e3825089275d*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-57822))~cve~%27CVE-2025-57822))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-34350",
+          "ruleIndex": 19,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2024-34350\nSeverity: HIGH\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 13.5.1\nSource: [CVE-2024-34350](https://github.com/advisories/GHSA-77r5-gw3j-2mpf)\nDescription: Next.js is a React framework that can provide building blocks to create web applications. Prior to 13.5.1, an inconsistent interpretation of a crafted HTTP request meant that requests are treated as both a single request, and two separate requests by Next.js, leading to desynchronized responses. This led to a response queue poisoning vulnerability in the affected Next.js versions. For a request to be exploitable, the affected route also had to be making use of the [rewrites](https://nextjs.org/docs/app/api-reference/next-config-js/rewrites) feature in Next.js. The vulnerability is resolved in Next.js `13.5.1` and newer.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-34350`**](https://github.com/advisories/GHSA-77r5-gw3j-2mpf)\n- Fixed version: `13.5.1`\n### 🔍 Overview\nNext.js is a React framework that can provide building blocks to create web applications. Prior to 13.5.1, an inconsistent interpretation of a crafted HTTP request meant that requests are treated as both a single request, and two separate requests by Next.js, leading to desynchronized responses. This led to a response queue poisoning vulnerability in the affected Next.js versions. For a request to be exploitable, the affected route also had to be making use of the [rewrites](https://nextjs.org/docs/app/api-reference/next-config-js/rewrites) feature in Next.js. The vulnerability is resolved in Next.js `13.5.1` and newer.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-77r5-gw3j-2mpf)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27a52912f4-c0b4-5024-afcc-13c0ed05459a*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-34350))~cve~%27CVE-2024-34350))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-34351",
+          "ruleIndex": 20,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2024-34351\nSeverity: HIGH\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.1.1\nSource: [CVE-2024-34351](https://github.com/advisories/GHSA-fr5h-rqp8-mj6g)\nDescription: Next.js is a React framework that can provide building blocks to create web applications. A Server-Side Request Forgery (SSRF) vulnerability was identified in Next.js Server Actions. If the `Host` header is modified, and the below conditions are also met, an attacker may be able to make requests that appear to be originating from the Next.js application server itself. The required conditions are 1) Next.js is running in a self-hosted manner; 2) the Next.js application makes use of Server Actions; and 3) the Server Action performs a redirect to a relative path which starts with a `/`. This vulnerability was fixed in Next.js `14.1.1`.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-34351`**](https://github.com/advisories/GHSA-fr5h-rqp8-mj6g)\n- Fixed version: `14.1.1`\n### 🔍 Overview\nNext.js is a React framework that can provide building blocks to create web applications. A Server-Side Request Forgery (SSRF) vulnerability was identified in Next.js Server Actions. If the `Host` header is modified, and the below conditions are also met, an attacker may be able to make requests that appear to be originating from the Next.js application server itself. The required conditions are 1) Next.js is running in a self-hosted manner; 2) the Next.js application makes use of Server Actions; and 3) the Server Action performs a redirect to a relative path which starts with a `/`. This vulnerability was fixed in Next.js `14.1.1`.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-fr5h-rqp8-mj6g)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%273c376ac4-8499-5352-b33c-c919770d46ed*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-34351))~cve~%27CVE-2024-34351))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-39693",
+          "ruleIndex": 21,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2024-39693\nSeverity: HIGH\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 13.5.0\nSource: [CVE-2024-39693](https://github.com/advisories/GHSA-fq54-2j52-jc42)\nDescription: Next.js is a React framework. A Denial of Service (DoS) condition was identified in Next.js. Exploitation of the bug can trigger a crash, affecting the availability of the server. his vulnerability was resolved in Next.js 13.5 and later.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-39693`**](https://github.com/advisories/GHSA-fq54-2j52-jc42)\n- Fixed version: `13.5.0`\n### 🔍 Overview\nNext.js is a React framework. A Denial of Service (DoS) condition was identified in Next.js. Exploitation of the bug can trigger a crash, affecting the availability of the server. his vulnerability was resolved in Next.js 13.5 and later.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-fq54-2j52-jc42)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27045583ed-d054-5970-90db-37839d8eead0*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-39693))~cve~%27CVE-2024-39693))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-51479",
+          "ruleIndex": 22,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2024-51479\nSeverity: HIGH\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 14.2.15\nSource: [CVE-2024-51479](https://github.com/advisories/GHSA-7gfc-8cq8-jh5f)\nDescription: Next.js is a React framework for building full-stack web applications. In affected versions if a Next.js application is performing authorization in middleware based on pathname, it was possible for this authorization to be bypassed for pages directly under the application's root directory. For example: * [Not affected] `https://example.com/` * [Affected] `https://example.com/foo` * [Not affected] `https://example.com/foo/bar`. This issue is patched in Next.js `14.2.15` and later. If your Next.js application is hosted on Vercel, this vulnerability has been automatically mitigated, regardless of Next.js version. There are no official workarounds for this vulnerability.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2024-51479`**](https://github.com/advisories/GHSA-7gfc-8cq8-jh5f)\n- Fixed version: `14.2.15`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. In affected versions if a Next.js application is performing authorization in middleware based on pathname, it was possible for this authorization to be bypassed for pages directly under the application's root directory. For example: * [Not affected] `https://example.com/` * [Affected] `https://example.com/foo` * [Not affected] `https://example.com/foo/bar`. This issue is patched in Next.js `14.2.15` and later. If your Next.js application is hosted on Vercel, this vulnerability has been automatically mitigated, regardless of Next.js version. There are no official workarounds for this vulnerability.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-7gfc-8cq8-jh5f)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27ebaacb51-8e36-52c4-85f1-2e776549d848*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2024-51479))~cve~%27CVE-2024-51479))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-29927",
+          "ruleIndex": 23,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2025-29927\nSeverity: CRITICAL\nComponent: next\nType: Library vulnerability\nVersion: 13.4.1\nFixed version: 13.5.9\nSource: [CVE-2025-29927](https://github.com/advisories/GHSA-f82v-jwr5-mffw)\nDescription: Next.js is a React framework for building full-stack web applications. Prior to 14.2.25 and 15.2.3, it is possible to bypass authorization checks within a Next.js application, if the authorization check occurs in middleware. If patching to a safe version is infeasible, it is recommend that you prevent external user requests which contain the x-middleware-subrequest header from reaching your Next.js application. This vulnerability is fixed in 14.2.25 and 15.2.3.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `next` version `13.4.1`\n- Vulnerable to [**`CVE-2025-29927`**](https://github.com/advisories/GHSA-f82v-jwr5-mffw)\n- Fixed version: `13.5.9`\n### 🔍 Overview\nNext.js is a React framework for building full-stack web applications. Prior to 14.2.25 and 15.2.3, it is possible to bypass authorization checks within a Next.js application, if the authorization check occurs in middleware. If patching to a safe version is infeasible, it is recommend that you prevent external user requests which contain the x-middleware-subrequest header from reaching your Next.js application. This vulnerability is fixed in 14.2.25 and 15.2.3.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-f82v-jwr5-mffw)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%2769908f18-c967-5fcf-99e0-eb30ec976e97*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2025-29927))~cve~%27CVE-2025-29927))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: next@13.4.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-44270",
+          "ruleIndex": 24,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2023-44270\nSeverity: MEDIUM\nComponent: postcss\nType: Library vulnerability\nVersion: 8.4.14\nFixed version: 8.4.31\nSource: [CVE-2023-44270](https://github.com/advisories/GHSA-7fh5-64p2-3v2j)\nDescription: An issue was discovered in PostCSS before 8.4.31. The vulnerability affects linters using PostCSS to parse external untrusted CSS. An attacker can prepare CSS in such a way that it will contains parts parsed by PostCSS as a CSS comment. After processing by PostCSS, it will be included in the PostCSS output in CSS nodes (rules, properties) despite being included in a comment.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `postcss` version `8.4.14`\n- Vulnerable to [**`CVE-2023-44270`**](https://github.com/advisories/GHSA-7fh5-64p2-3v2j)\n- Fixed version: `8.4.31`\n### 🔍 Overview\nAn issue was discovered in PostCSS before 8.4.31. The vulnerability affects linters using PostCSS to parse external untrusted CSS. An attacker can prepare CSS in such a way that it will contains parts parsed by PostCSS as a CSS comment. After processing by PostCSS, it will be included in the PostCSS output in CSS nodes (rules, properties) despite being included in a comment.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-7fh5-64p2-3v2j)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27f25a6aa9-87f9-56c0-8c99-ef9356d94658*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2023-44270))~cve~%27CVE-2023-44270))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: postcss@8.4.14"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-4316",
+          "ruleIndex": 25,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2023-4316\nSeverity: MEDIUM\nComponent: zod\nType: Library vulnerability\nVersion: 3.21.4\nFixed version: 3.22.3\nSource: [CVE-2023-4316](https://github.com/advisories/GHSA-m95q-7qp3-xv42)\nDescription: Zod in versions 3.21.0 up to and including 3.22.3 allows an attacker to perform a denial of service while validating emails.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `zod` version `3.21.4`\n- Vulnerable to [**`CVE-2023-4316`**](https://github.com/advisories/GHSA-m95q-7qp3-xv42)\n- Fixed version: `3.22.3`\n### 🔍 Overview\nZod in versions 3.21.0 up to and including 3.22.3 allows an attacker to perform a denial of service while validating emails.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-m95q-7qp3-xv42)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%275b048264-367c-50a1-b140-07efcd8f119e*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2023-4316))~cve~%27CVE-2023-4316))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package-lock.json: zod@3.21.4"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2020-28500",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "Name: CVE-2020-28500\nSeverity: MEDIUM\nComponent: lodash\nType: Library vulnerability\nVersion: 4.17.19\nFixed version: 4.17.21\nSource: [CVE-2020-28500](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\nDescription: Lodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `lodash` version `4.17.19`\n- Vulnerable to [**`CVE-2020-28500`**](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\n- Fixed version: `4.17.21`\n### 🔍 Overview\nLodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%279f6b5434-ef97-590c-95b6-8b66c4261474*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2020-28500))~cve~%27CVE-2020-28500))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package.json: lodash@4.17.19"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-23337",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2021-23337\nSeverity: HIGH\nComponent: lodash\nType: Library vulnerability\nVersion: 4.17.19\nFixed version: 4.17.21\nSource: [CVE-2021-23337](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\nDescription: Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `lodash` version `4.17.19`\n- Vulnerable to [**`CVE-2021-23337`**](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\n- Fixed version: `4.17.21`\n### 🔍 Overview\nLodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27b0938b0b-3f71-5e87-abf8-94940e857040*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2021-23337))~cve~%27CVE-2021-23337))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package.json: lodash@4.17.19"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-24785",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2022-24785\nSeverity: HIGH\nComponent: moment\nType: Library vulnerability\nVersion: 2.29.1\nFixed version: 2.29.2\nSource: [CVE-2022-24785](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\nDescription: Moment.js is a JavaScript date library for parsing, validating, manipulating, and formatting dates. A path traversal vulnerability impacts npm (server) users of Moment.js between versions 1.0.1 and 2.29.1, especially if a user-provided locale string is directly used to switch moment locale. This problem is patched in 2.29.2, and the patch can be applied to all affected versions. As a workaround, sanitize the user-provided locale name before passing it to Moment.js.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `moment` version `2.29.1`\n- Vulnerable to [**`CVE-2022-24785`**](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\n- Fixed version: `2.29.2`\n### 🔍 Overview\nMoment.js is a JavaScript date library for parsing, validating, manipulating, and formatting dates. A path traversal vulnerability impacts npm (server) users of Moment.js between versions 1.0.1 and 2.29.1, especially if a user-provided locale string is directly used to switch moment locale. This problem is patched in 2.29.2, and the patch can be applied to all affected versions. As a workaround, sanitize the user-provided locale name before passing it to Moment.js.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-8hfj-j24r-96c4)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%278cee1019-f641-585b-adcc-0ddb2f8efec2*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-24785))~cve~%27CVE-2022-24785))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package.json: moment@2.29.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-31129",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "Name: CVE-2022-31129\nSeverity: HIGH\nComponent: moment\nType: Library vulnerability\nVersion: 2.29.1\nFixed version: 2.29.4\nSource: [CVE-2022-31129](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\nDescription: moment is a JavaScript date library for parsing, validating, manipulating, and formatting dates. Affected versions of moment were found to use an inefficient parsing algorithm. Specifically using string-to-date parsing in moment (more specifically rfc2822 parsing, which is tried by default) has quadratic (N^2) complexity on specific inputs. Users may notice a noticeable slowdown is observed with inputs above 10k characters. Users who pass user-provided strings without sanity length checks to moment constructor are vulnerable to (Re)DoS attacks. The problem is patched in 2.29.4, the patch can be applied to all affected versions with minimal tweaking. Users are advised to upgrade. Users unable to upgrade should consider limiting date lengths accepted from user input.",
+            "markdown": "\n### 🌟 TL;DR\n- Library vulnerability was detected in component `moment` version `2.29.1`\n- Vulnerable to [**`CVE-2022-31129`**](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\n- Fixed version: `2.29.4`\n### 🔍 Overview\nmoment is a JavaScript date library for parsing, validating, manipulating, and formatting dates. Affected versions of moment were found to use an inefficient parsing algorithm. Specifically using string-to-date parsing in moment (more specifically rfc2822 parsing, which is tried by default) has quadratic (N^2) complexity on specific inputs. Users may notice a noticeable slowdown is observed with inputs above 10k characters. Users who pass user-provided strings without sanity length checks to moment constructor are vulnerable to (Re)DoS attacks. The problem is patched in 2.29.4, the patch can be applied to all affected versions with minimal tweaking. Users are advised to upgrade. Users unable to upgrade should consider limiting date lengths accepted from user input.\n\n\n### 🔗 References\n- [Data Source](https://github.com/advisories/GHSA-wc69-rhjr-hc9g)\n- [View finding in Wiz](https://app.wiz.io/findings/vulnerability-findings#~(entity~(~%27044bd73e-9be9-5f9b-810e-c37d42ecd313*2cSECURITY_TOOL_FINDING)))\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27CVE-2022-31129))~cve~%27CVE-2022-31129))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/frontend/package.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/frontend/package.json: moment@2.29.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "EOL-TECHNOLOGY",
+          "ruleIndex": 26,
+          "level": "warning",
+          "message": {
+            "text": "Name: EOL-TECHNOLOGY\nSeverity: MEDIUM\nComponent: AWS SDK for Go (v1)\nType: Technology vulnerability\nVersion: 1.55.7\nDescription: End-of-Life versions of technologies have no further official support by the vendor and thus no security patches. Furthermore, newly discovered vulnerabilities are not reported. Thus, such technologies pose a threat that is both unknown and will not be fixed.",
+            "markdown": "\n### 🌟 TL;DR\n- Technology vulnerability was detected in component `AWS SDK for Go (v1)` version `1.55.7`\n- Vulnerable to [**`EOL-TECHNOLOGY`**]()\n### 🔍 Overview\nEnd-of-Life versions of technologies have no further official support by the vendor and thus no security patches. Furthermore, newly discovered vulnerabilities are not reported. Thus, such technologies pose a threat that is both unknown and will not be fixed.\n\n\n### 🔗 References\n- [Data Source]()\n- [View finding in Wiz]()\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27EOL-TECHNOLOGY))~cve~%27EOL-TECHNOLOGY))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/: AWS SDK for Go (v1)@1.55.7"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "EOL-TECHNOLOGY",
+          "ruleIndex": 26,
+          "level": "warning",
+          "message": {
+            "text": "Name: EOL-TECHNOLOGY\nSeverity: MEDIUM\nComponent: Next.js\nType: Technology vulnerability\nVersion: 14\nDescription: End-of-Life versions of technologies have no further official support by the vendor and thus no security patches. Furthermore, newly discovered vulnerabilities are not reported. Thus, such technologies pose a threat that is both unknown and will not be fixed.",
+            "markdown": "\n### 🌟 TL;DR\n- Technology vulnerability was detected in component `Next.js` version `14`\n- Vulnerable to [**`EOL-TECHNOLOGY`**]()\n### 🔍 Overview\nEnd-of-Life versions of technologies have no further official support by the vendor and thus no security patches. Furthermore, newly discovered vulnerabilities are not reported. Thus, such technologies pose a threat that is both unknown and will not be fixed.\n\n\n### 🔗 References\n- [Data Source]()\n- [View finding in Wiz]()\n- [View vulnerability in catalog](https://app.wiz.io/policies/vulnerability-catalog#~(filters~(search~(contains~%27EOL-TECHNOLOGY))~cve~%27EOL-TECHNOLOGY))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/: Next.js@14"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SECRET-SYSTEM-1",
+          "ruleIndex": 27,
+          "level": "error",
+          "message": {
+            "text": "Description: AWS Access Key (AccessKeyId=AKIAQ64QXDFHRX6T43NW)\nPath: ../scan/docker-compose.yml\nLine number: 61\nOffset: 2418\nType: CLOUD_KEY\nSnippet:  AKIAQ64QXDFHRX6T43NW\\n      AWS_SECRET_ACCESS_KEY: ---REDACTED---\\n\nSeverity: HIGH",
+            "markdown": "\n### 🌟 TL;DR\n- AWS Access Key (AccessKeyId=AKIAQ64QXDFHRX6T43NW) exposed in `../scan/docker-compose.yml:61`\n\n### 🔍 Overview\n- Secret type: `CLOUD_KEY`\n- Path: `../scan/docker-compose.yml`\n- Line number: `61`\n- Offset: `2418`\n\n### 🔗 References\n- [View finding in Wiz](https://app.wiz.io/findings/secret-findings#~(entity~(~%27*2cSECRET_INSTANCE)))\n- [View secret data in Security Graph](https://app.wiz.io/explorer/graph#~(view~%27table~query~(type~(~%27SECRET_DATA)~select~true~relationships~(~(type~(~(type~%27INSTANCE_OF~reverse~true))~with~(type~(~%27SECRET_INSTANCE)~select~true~where~(_vertexID~(EQUALS~(~)))))))))\n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "../scan/docker-compose.yml",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 61,
+                  "startColumn": 1,
+                  "endLine": 61,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "../scan/docker-compose.yml"
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "originalUriBaseIds": {
+        "ROOTPATH": {
+          "uri": "file:///"
+        }
+      }
+    }
+  ]
+}
