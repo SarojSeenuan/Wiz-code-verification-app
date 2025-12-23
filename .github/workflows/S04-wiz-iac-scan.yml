@@ -8,15 +8,16 @@ name: S04 - Wiz IaC Scan
 on:
   push:
     branches:
-      - main
+      - master
       - develop
     paths:
-      - 'terraform/**'
+      - "taskflow-app/terraform/**"
   pull_request:
     branches:
-      - main
+      - master
     paths:
-      - 'terraform/**'
+      - "taskflow-app/terraform/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,22 +39,28 @@ jobs:
 
       - name: Terraformフォーマットチェック
         run: |
-          terraform fmt -check -recursive terraform/
+          terraform fmt -check -recursive taskflow-app/terraform/
 
-      - name: Wiz CLIダウンロード
+      - name: Wiz CLIイメージ取得
         run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: Terraform全体スキャン
         run: |
-          wizcli iac scan \
-            --path ./terraform \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform \
             --name "terraform-full-${{ github.sha }}" \
             --tag "environment=all" \
             --tag "branch=${{ github.ref_name }}" \
@@ -63,8 +70,12 @@ jobs:
 
       - name: Terraform Dev環境スキャン
         run: |
-          wizcli iac scan \
-            --path ./terraform/environments/dev \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/dev \
             --name "terraform-dev-${{ github.sha }}" \
             --tag "environment=dev" \
             --tag "branch=${{ github.ref_name }}" \
@@ -73,8 +84,12 @@ jobs:
 
       - name: Terraform Prod環境スキャン
         run: |
-          wizcli iac scan \
-            --path ./terraform/environments/prod \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/prod \
             --name "terraform-prod-${{ github.sha }}" \
             --tag "environment=prod" \
             --tag "branch=${{ github.ref_name }}" \
@@ -84,24 +99,37 @@ jobs:
       - name: Terraform Vulnerable環境スキャン（検証用）
         id: vulnerable_scan
         run: |
-          wizcli iac scan \
-            --path ./terraform/environments/vulnerable \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest iac scan \
+            --path /scan/taskflow-app/terraform/environments/vulnerable \
             --name "terraform-vulnerable-${{ github.sha }}" \
             --tag "environment=vulnerable" \
             --tag "branch=${{ github.ref_name }}" \
             --tag "commit=${{ github.sha }}" \
             --tag "purpose=security-testing" \
-            --output vulnerable-iac-results.sarif,sarif \
-            --output vulnerable-iac-results.json,json \
+            --output /scan/vulnerable-iac-results.sarif,sarif \
+            --output /scan/vulnerable-iac-results.json,json \
             --policy-hits-only
         continue-on-error: true
 
       - name: SARIF結果をGitHub Securityにアップロード
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true
         with:
           sarif_file: vulnerable-iac-results.sarif
           category: wiz-iac-vulnerable
+
+      - name: エビデンスフォルダに結果を保存
+        if: always()
+        run: |
+          mkdir -p evidence/phase1/S04
+          cp vulnerable-iac-results.sarif evidence/phase1/S04/ 2>/dev/null || echo "SARIFファイルが見つかりません"
+          cp vulnerable-iac-results.json evidence/phase1/S04/ 2>/dev/null || echo "JSONファイルが見つかりません"
+          echo "S04検証結果を保存しました: evidence/phase1/S04/"
 
       - name: スキャン結果をArtifactとして保存
         uses: actions/upload-artifact@v4
@@ -111,6 +139,7 @@ jobs:
           path: |
             vulnerable-iac-results.sarif
             vulnerable-iac-results.json
+            evidence/phase1/S04/
 
       - name: スキャン結果の確認
         if: steps.vulnerable_scan.outcome == 'failure'
@@ -140,18 +169,18 @@ jobs:
 
       - name: Terraform Init
         run: |
-          cd terraform/environments/${{ matrix.environment }}
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
           terraform init -backend=false
 
       - name: Terraform Validate
         run: |
-          cd terraform/environments/${{ matrix.environment }}
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
           terraform validate
 
       - name: Terraform Plan（PRの場合のみ）
         if: github.event_name == 'pull_request'
         run: |
-          cd terraform/environments/${{ matrix.environment }}
+          cd taskflow-app/terraform/environments/${{ matrix.environment }}
           terraform plan -no-color
 
   generate-iac-report:

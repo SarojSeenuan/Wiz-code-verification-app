@@ -27,7 +27,7 @@ output "ebs_volume_id" {
 
 output "detected_issues_summary" {
   description = "Summary of expected Wiz detections"
-  value = <<-EOT
+  value       = <<-EOT
   期待される検出結果:
   - CRITICAL: 3件（ハードコードパスワード、パブリックRDS、全ポート開放）
   - HIGH: 5件（暗号化なし、パブリックアクセス許可）

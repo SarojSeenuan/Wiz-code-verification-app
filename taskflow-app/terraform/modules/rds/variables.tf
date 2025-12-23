@@ -32,7 +32,7 @@ variable "security_group_id" {
 variable "engine_version" {
   description = "PostgreSQLエンジンバージョン"
   type        = string
-  default     = "14.7"  # Wiz検証用: 意図的に古いバージョン（S04で検出）
+  default     = "14.7" # Wiz検証用: 意図的に古いバージョン（S04で検出）
 }
 
 variable "instance_class" {
@@ -62,7 +62,7 @@ variable "storage_type" {
 variable "storage_encrypted" {
   description = "ストレージ暗号化を有効にするかどうか"
   type        = bool
-  default     = false  # Wiz検証用: 意図的に暗号化無効（S04で検出）
+  default     = false # Wiz検証用: 意図的に暗号化無効（S04で検出）
 }
 
 variable "kms_key_arn" {
@@ -104,13 +104,13 @@ variable "multi_az" {
 variable "publicly_accessible" {
   description = "パブリックアクセスを許可するかどうか"
   type        = bool
-  default     = true  # Wiz検証用: 意図的にパブリックアクセス許可（S04で検出）
+  default     = true # Wiz検証用: 意図的にパブリックアクセス許可（S04で検出）
 }
 
 variable "backup_retention_period" {
   description = "バックアップ保持期間（日数）"
   type        = number
-  default     = 0  # Wiz検証用: 意図的にバックアップ無効（S04で検出）
+  default     = 0 # Wiz検証用: 意図的にバックアップ無効（S04で検出）
 }
 
 variable "backup_window" {
@@ -134,7 +134,7 @@ variable "enabled_cloudwatch_logs_exports" {
 variable "deletion_protection" {
   description = "削除保護を有効にするかどうか"
   type        = bool
-  default     = false  # Wiz検証用: 意図的に削除保護無効（S04で検出）
+  default     = false # Wiz検証用: 意図的に削除保護無効（S04で検出）
 }
 
 variable "skip_final_snapshot" {
@@ -146,7 +146,7 @@ variable "skip_final_snapshot" {
 variable "performance_insights_enabled" {
   description = "Performance Insightsを有効にするかどうか"
   type        = bool
-  default     = false  # Wiz検証用: 意図的に監視機能無効（S04で検出）
+  default     = false # Wiz検証用: 意図的に監視機能無効（S04で検出）
 }
 
 variable "performance_insights_kms_key_id" {

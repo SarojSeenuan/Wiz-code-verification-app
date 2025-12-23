@@ -44,19 +44,19 @@ resource "random_string" "suffix" {
 # Severity: CRITICAL
 # ========================================
 resource "aws_db_instance" "vulnerable_rds" {
-  identifier           = "vulnerable-rds-${random_string.suffix.result}"
-  engine               = "postgres"
-  engine_version       = "15.4"
-  instance_class       = "db.t3.micro"
-  allocated_storage    = 20
-  username             = "admin"
-  password             = "hardcoded_password123"  # 問題: ハードコードされたパスワード
-  publicly_accessible  = true                     # 問題: パブリックアクセス有効
-  skip_final_snapshot  = true
-  storage_encrypted    = false                    # 問題: 暗号化なし
-  deletion_protection  = false
+  identifier          = "vulnerable-rds-${random_string.suffix.result}"
+  engine              = "postgres"
+  engine_version      = "15.4"
+  instance_class      = "db.t3.micro"
+  allocated_storage   = 20
+  username            = "admin"
+  password            = "hardcoded_password123" # 問題: ハードコードされたパスワード
+  publicly_accessible = true                    # 問題: パブリックアクセス有効
+  skip_final_snapshot = true
+  storage_encrypted   = false # 問題: 暗号化なし
+  deletion_protection = false
 
-  backup_retention_period = 0  # 問題: バックアップなし
+  backup_retention_period = 0 # 問題: バックアップなし
 
   # 問題: 監査ログなし
   # enabled_cloudwatch_logs_exports が設定されていない
@@ -86,8 +86,8 @@ resource "aws_s3_bucket" "vulnerable_bucket" {
 resource "aws_s3_bucket_public_access_block" "vulnerable_pab" {
   bucket = aws_s3_bucket.vulnerable_bucket.id
 
-  block_public_acls       = false  # 問題: パブリックACL許可
-  block_public_policy     = false  # 問題: パブリックポリシー許可
+  block_public_acls       = false # 問題: パブリックACL許可
+  block_public_policy     = false # 問題: パブリックポリシー許可
   ignore_public_acls      = false
   restrict_public_buckets = false
 }
@@ -115,7 +115,7 @@ resource "aws_security_group" "vulnerable_sg" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # 問題: 0.0.0.0/0 からアクセス可能
+    cidr_blocks = ["0.0.0.0/0"] # 問題: 0.0.0.0/0 からアクセス可能
   }
 
   # 問題: SSH ポートを全世界に開放
@@ -124,7 +124,7 @@ resource "aws_security_group" "vulnerable_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # 問題: SSHが全世界に開放
+    cidr_blocks = ["0.0.0.0/0"] # 問題: SSHが全世界に開放
   }
 
   # 問題: RDP ポートを全世界に開放
@@ -133,7 +133,7 @@ resource "aws_security_group" "vulnerable_sg" {
     from_port   = 3389
     to_port     = 3389
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # 問題: RDPが全世界に開放
+    cidr_blocks = ["0.0.0.0/0"] # 問題: RDPが全世界に開放
   }
 
   egress {
@@ -157,7 +157,7 @@ resource "aws_security_group" "vulnerable_sg" {
 resource "aws_ebs_volume" "vulnerable_ebs" {
   availability_zone = "${var.aws_region}a"
   size              = 10
-  encrypted         = false  # 問題: 暗号化なし
+  encrypted         = false # 問題: 暗号化なし
 
   tags = {
     Name        = "Vulnerable EBS Volume"

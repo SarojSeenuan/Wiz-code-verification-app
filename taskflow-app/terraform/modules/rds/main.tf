@@ -57,54 +57,54 @@ resource "aws_db_parameter_group" "main" {
   )
 }
 
-  # RDSインスタンス
-  resource "aws_db_instance" "main" {
-    identifier     = "${var.environment}-taskflow-db"
-    engine         = "postgres"
-    engine_version = var.engine_version
+# RDSインスタンス
+resource "aws_db_instance" "main" {
+  identifier     = "${var.environment}-taskflow-db"
+  engine         = "postgres"
+  engine_version = var.engine_version
 
-    instance_class        = var.instance_class
-    allocated_storage     = var.allocated_storage
-    max_allocated_storage = var.max_allocated_storage
-    storage_type          = var.storage_type
-    storage_encrypted     = var.storage_encrypted
-    kms_key_id            = var.kms_key_arn
+  instance_class        = var.instance_class
+  allocated_storage     = var.allocated_storage
+  max_allocated_storage = var.max_allocated_storage
+  storage_type          = var.storage_type
+  storage_encrypted     = var.storage_encrypted
+  kms_key_id            = var.kms_key_arn
 
-    db_name  = var.database_name
-    username = var.master_username
-    password = var.master_password
-    port     = var.database_port
+  db_name  = var.database_name
+  username = var.master_username
+  password = var.master_password
+  port     = var.database_port
 
-    db_subnet_group_name   = aws_db_subnet_group.main.name
-    parameter_group_name   = aws_db_parameter_group.main.name
-    vpc_security_group_ids = [var.security_group_id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  parameter_group_name   = aws_db_parameter_group.main.name
+  vpc_security_group_ids = [var.security_group_id]
 
-    multi_az               = var.multi_az
-    publicly_accessible    = var.publicly_accessible
-    backup_retention_period = var.backup_retention_period
-    backup_window          = var.backup_window
-    maintenance_window     = var.maintenance_window
+  multi_az                = var.multi_az
+  publicly_accessible     = var.publicly_accessible
+  backup_retention_period = var.backup_retention_period
+  backup_window           = var.backup_window
+  maintenance_window      = var.maintenance_window
 
-    enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
+  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
 
-    deletion_protection = var.deletion_protection
-    skip_final_snapshot = var.skip_final_snapshot
-    final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.environment}-taskflow-db-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  deletion_protection       = var.deletion_protection
+  skip_final_snapshot       = var.skip_final_snapshot
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.environment}-taskflow-db-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
-    performance_insights_enabled    = var.performance_insights_enabled
-    performance_insights_kms_key_id = var.performance_insights_kms_key_id
-    performance_insights_retention_period = var.performance_insights_retention_period
+  performance_insights_enabled          = var.performance_insights_enabled
+  performance_insights_kms_key_id       = var.performance_insights_kms_key_id
+  performance_insights_retention_period = var.performance_insights_retention_period
 
-    copy_tags_to_snapshot = true
-    auto_minor_version_upgrade = var.auto_minor_version_upgrade
+  copy_tags_to_snapshot      = true
+  auto_minor_version_upgrade = var.auto_minor_version_upgrade
 
-    tags = merge(
-      var.common_tags,
-      {
-        Name = "${var.environment}-taskflow-db"
-      }
-    )
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.environment}-taskflow-db"
+    }
+  )
+}
 
 # CloudWatch アラーム - CPU使用率
 resource "aws_cloudwatch_metric_alarm" "database_cpu" {
@@ -136,7 +136,7 @@ resource "aws_cloudwatch_metric_alarm" "database_storage" {
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = 10000000000  # 10GB
+  threshold           = 10000000000 # 10GB
   alarm_description   = "RDS空きストレージが10GB未満です"
 
   dimensions = {

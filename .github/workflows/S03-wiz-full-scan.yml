@@ -8,11 +8,11 @@ name: S03 - Wiz Full Scan
 on:
   push:
     branches:
-      - main
+      - master
       - develop
   pull_request:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ permissions:
   actions: read
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
   REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
   IMAGE_NAME_BACKEND: taskflow-backend
   IMAGE_NAME_FRONTEND: taskflow-frontend
@@ -34,20 +34,33 @@ jobs:
       - name: コードチェックアウト
         uses: actions/checkout@v4
 
-      - name: Wiz CLIダウンロード
+      - name: Wiz CLIイメージ取得
         run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
+
+      - name: Wiz CLIバージョン確認
+        run: |
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest version
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: バックエンドスキャン
         run: |
-          wizcli dir scan \
-            --path ./backend \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest dir scan \
+            --path /scan/taskflow-app/backend \
             --name "backend-source-${{ github.sha }}" \
             --tag "component=backend" \
             --tag "branch=${{ github.ref_name }}" \
@@ -57,8 +70,12 @@ jobs:
 
       - name: フロントエンドスキャン
         run: |
-          wizcli dir scan \
-            --path ./frontend \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest dir scan \
+            --path /scan/taskflow-app/frontend \
             --name "frontend-source-${{ github.sha }}" \
             --tag "component=frontend" \
             --tag "branch=${{ github.ref_name }}" \
@@ -91,41 +108,57 @@ jobs:
 
       - name: Dockerイメージビルド
         run: |
-          cd ${{ matrix.component }}
+          cd taskflow-app/${{ matrix.component }}
           docker build -t taskflow-${{ matrix.component }}:${{ github.sha }} .
 
-      - name: Wiz CLIダウンロード
+      - name: Wiz CLIイメージ取得
         run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: Dockerイメージスキャン
         id: docker_scan
         run: |
-          wizcli docker scan \
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            --mount type=bind,src="${PWD}",dst=/scan \
+            wizcli:latest docker scan \
             --image taskflow-${{ matrix.component }}:${{ github.sha }} \
             --tag "component=${{ matrix.component }}" \
             --tag "branch=${{ github.ref_name }}" \
             --tag "commit=${{ github.sha }}" \
             --tag "build-number=${{ github.run_number }}" \
             --tag "scan-type=container-image" \
-            --dockerfile ./${{ matrix.component }}/Dockerfile \
-            --output docker-${{ matrix.component }}-results.sarif,sarif \
-            --output docker-${{ matrix.component }}-results.json,json \
+            --dockerfile /scan/taskflow-app/${{ matrix.component }}/Dockerfile \
+            --output /scan/docker-${{ matrix.component }}-results.sarif,sarif \
+            --output /scan/docker-${{ matrix.component }}-results.json,json \
             --policy-hits-only
         continue-on-error: true
 
       - name: SARIF結果をGitHub Securityにアップロード
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true
         with:
           sarif_file: docker-${{ matrix.component }}-results.sarif
           category: wiz-docker-${{ matrix.component }}
+
+      - name: エビデンスフォルダに結果を保存
+        if: always()
+        run: |
+          mkdir -p evidence/phase1/S03
+          cp docker-${{ matrix.component }}-results.sarif evidence/phase1/S03/ 2>/dev/null || echo "SARIFファイルが見つかりません"
+          cp docker-${{ matrix.component }}-results.json evidence/phase1/S03/ 2>/dev/null || echo "JSONファイルが見つかりません"
+          echo "S03検証結果を保存しました: evidence/phase1/S03/"
 
       - name: スキャン結果をArtifactとして保存
         uses: actions/upload-artifact@v4
@@ -135,6 +168,7 @@ jobs:
           path: |
             docker-${{ matrix.component }}-results.sarif
             docker-${{ matrix.component }}-results.json
+            evidence/phase1/S03/
 
       - name: スキャン結果の確認
         if: steps.docker_scan.outcome == 'failure'
@@ -166,15 +200,17 @@ jobs:
       - name: コードチェックアウト
         uses: actions/checkout@v4
 
-      - name: Wiz CLIダウンロード
+      - name: Wiz CLIイメージ取得
         run: |
-          curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          sudo mv wizcli /usr/local/bin/
+          docker pull public-registry.wiz.io/wiz-app/wizcli:1
+          docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
       - name: Wiz認証
         run: |
-          wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          docker run --rm \
+            -e WIZ_CLIENT_ID="${{ secrets.WIZ_CLIENT_ID }}" \
+            -e WIZ_CLIENT_SECRET="${{ secrets.WIZ_CLIENT_SECRET }}" \
+            wizcli:latest auth
 
       - name: スキャンサマリー出力
         run: |

@@ -97,9 +97,15 @@
 **🚀 AWS 環境のデプロイ手順**:
 
 - 詳細は [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md) を参照してください
-- リージョン: 東京（ap-northeast-1）
-- 検証期間: 1 週間（想定コスト: 約$26）
-- 必要リソース: ECS Fargate, ECR, RDS PostgreSQL, VPC, NAT Gateway, ALB
+- **リージョン**: us-east-1（バージニア北部）
+- **AWSアカウントID**: 066338625871
+- **検証期間**: 1週間（想定コスト: 約$26）
+- **主要リソース**:
+  - ECRリポジトリ: dev-taskflow-backend, dev-taskflow-frontend
+  - ECSクラスター: dev-taskflow-cluster
+  - ECSサービス: dev-taskflow-backend-service, dev-taskflow-frontend-service
+  - ALB: dev-taskflow-alb-550446343.us-east-1.elb.amazonaws.com
+  - RDS PostgreSQL, VPC, NAT Gateway
 
 ---
 
@@ -220,7 +226,8 @@ WIZ_CLIENT_ID          # WizサービスアカウントのクライアントID
 WIZ_CLIENT_SECRET      # Wizサービスアカウントのシークレット
 AWS_ACCESS_KEY_ID      # AWSアクセスキー（Phase 2以降）
 AWS_SECRET_ACCESS_KEY  # AWSシークレットアクセスキー（Phase 2以降）
-AWS_REGION            # AWSリージョン（例: us-east-1）
+AWS_REGION            # AWSリージョン: us-east-1
+AWS_ACCOUNT_ID        # AWSアカウントID: 066338625871
 ```
 
 ---
@@ -247,19 +254,72 @@ AWS_REGION            # AWSリージョン（例: us-east-1）
 
 ### 2. Wiz CLI のインストールと認証
 
-```bash
-# Wiz CLIのダウンロード（Linux/macOS）
-curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
-chmod +x wizcli
-sudo mv wizcli /usr/local/bin/
+#### Docker版Wiz CLI（推奨）
 
-# Wiz CLIのダウンロード（Windows）
-# https://downloads.wiz.io/wizcli/latest/wizcli-windows-amd64.exe をダウンロード
-# wizcli.exe にリネームしてPATHに追加
+本プロジェクトではDocker版のWiz CLIを使用します。これによりバイナリのダウンロード不要で、常に最新版を使用できます。
+
+```bash
+# Wiz CLIイメージの取得
+docker pull public-registry.wiz.io/wiz-app/wizcli:1
+docker tag public-registry.wiz.io/wiz-app/wizcli:1 wizcli:latest
 
 # 認証情報の設定（環境変数）
 export WIZ_CLIENT_ID="your_client_id_here"
 export WIZ_CLIENT_SECRET="your_client_secret_here"
+
+# Windows PowerShellの場合
+$env:WIZ_CLIENT_ID="your_client_id_here"
+$env:WIZ_CLIENT_SECRET="your_client_secret_here"
+
+# 認証テスト
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  wizcli:latest auth
+
+# バージョン確認
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  wizcli:latest version
+```
+
+#### TIS社内ネットワーク環境でのプロキシ設定
+
+TIS社内からDockerイメージをpullする場合、認証プロキシの設定が必要です：
+
+```bash
+# Windows コマンドプロンプト
+set HTTPS_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+set HTTP_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+
+# Windows PowerShell
+$env:HTTPS_PROXY="http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080"
+$env:HTTP_PROXY="http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080"
+
+# Linux/macOS
+export HTTPS_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+export HTTP_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+
+# プロキシ設定後にDockerイメージを取得
+docker pull public-registry.wiz.io/wiz-app/wizcli:1
+```
+
+**注意**: `tiexxxxx` とパスワードは各自の統合IDとパスワードに置き換えてください。
+
+#### バイナリ版Wiz CLI（オプション）
+
+プロキシ環境でDockerが使えない場合は、バイナリ版をダウンロードできます：
+
+```bash
+# Linux/macOS
+curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64
+chmod +x wizcli
+sudo mv wizcli /usr/local/bin/
+
+# Windows
+# https://downloads.wiz.io/wizcli/latest/wizcli-windows-amd64.exe をダウンロード
+# wizcli.exe にリネームしてPATHに追加
 
 # 認証テスト
 wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
@@ -355,18 +415,43 @@ chmod 600 .env
 aws configure
 
 # 以下を入力：
-AWS Access Key ID: AKIAIOSFODNN7EXAMPLE
-AWS Secret Access Key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS Access Key ID: <AWSコンソールで作成したアクセスキー>
+AWS Secret Access Key: <AWSコンソールで作成したシークレットキー>
 Default region name: us-east-1
 Default output format: json
+```
 
-TISの認証プロキシ設定
-set HTTPS_PROXY=http://tiexxxxx:パスワード（統合ID）@tkyproxy-auth.intra.tis.co.jp:8080
-※powershellの場合
-$Env:HTTPS_PROXY="http://tiexxxxx:パスワード（統合ID）@tkyproxy-auth.intra.tis.co.jp:8080"
+#### TIS社内ネットワーク環境でのプロキシ設定
+
+TIS社内からAWS APIにアクセスする場合、認証プロキシの設定が必要です：
+
+```bash
+# Windows コマンドプロンプト
+set HTTPS_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+set HTTP_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+
+# Windows PowerShell
+$env:HTTPS_PROXY="http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080"
+$env:HTTP_PROXY="http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080"
+
+# Linux/macOS
+export HTTPS_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+export HTTP_PROXY=http://tiexxxxx:パスワード@tkyproxy-auth.intra.tis.co.jp:8080
+
 # 認証テスト
 aws sts get-caller-identity
+
+# 期待される出力例:
+# {
+#     "UserId": "AIDAXXXXXXXXXXXXXXXXX",
+#     "Account": "066338625871",
+#     "Arn": "arn:aws:iam::066338625871:user/wiz-code-verification"
+# }
 ```
+
+**注意**:
+- `tiexxxxx` とパスワードは各自の統合IDとパスワードに置き換えてください
+- アカウントIDが `066338625871` と表示されることを確認してください
 
 ### 3. 複数プロファイルの設定（オプション）
 
@@ -378,6 +463,38 @@ aws configure --profile wiz-verification
 export AWS_PROFILE=wiz-verification
 aws sts get-caller-identity --profile wiz-verification
 ```
+
+### 4. AWS リソースの確認（Phase 2）
+
+既存のAWS環境で以下のリソースが作成されていることを確認します：
+
+```bash
+# ECRリポジトリの確認
+aws ecr describe-repositories --region us-east-1
+
+# 期待される出力:
+# - dev-taskflow-backend
+# - dev-taskflow-frontend
+
+# ECSクラスターの確認
+aws ecs list-clusters --region us-east-1
+aws ecs describe-clusters --clusters dev-taskflow-cluster --region us-east-1
+
+# ECSサービスの確認
+aws ecs list-services --cluster dev-taskflow-cluster --region us-east-1
+
+# 期待される出力:
+# - dev-taskflow-backend-service
+# - dev-taskflow-frontend-service
+
+# ALBの確認
+aws elbv2 describe-load-balancers --region us-east-1 | grep dev-taskflow
+
+# 期待されるDNS名:
+# dev-taskflow-alb-550446343.us-east-1.elb.amazonaws.com
+```
+
+**注意**: これらのリソースはTerraformまたは手動で事前に作成されている必要があります。詳細は [AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md) を参照してください。
 
 ---
 
@@ -722,12 +839,135 @@ curl http://localhost:3001/api/tasks
 
 ### 4. Wiz スキャンのテスト
 
+#### Docker版Wiz CLIでのスキャン
+
 ```bash
-# ディレクトリスキャン
+# プロジェクトルートに移動
 cd WizCodeVerification
-wizcli dir scan --path ./taskflow-app/backend --policy-hits-only
+
+# バックエンドのディレクトリスキャン
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  --mount type=bind,src="${PWD}",dst=/scan \
+  wizcli:latest dir scan \
+  --path /scan/taskflow-app/backend \
+  --policy-hits-only
+
+# フロントエンドのディレクトリスキャン
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  --mount type=bind,src="${PWD}",dst=/scan \
+  wizcli:latest dir scan \
+  --path /scan/taskflow-app/frontend \
+  --policy-hits-only
 
 # 成功すれば脆弱性が検出されます（意図的な脆弱性）
+```
+
+### 5. Docker イメージのビルドとスキャン（Phase 2）
+
+AWS環境へのデプロイ前にローカルでDockerイメージをビルド・スキャンします：
+
+```bash
+# バックエンドのDockerイメージビルド
+cd taskflow-app/backend
+docker build \
+  --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+  --build-arg GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  -t dev-taskflow-backend:latest \
+  .
+
+# フロントエンドのDockerイメージビルド
+cd ../frontend
+docker build \
+  --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+  --build-arg GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  -t dev-taskflow-frontend:latest \
+  .
+
+# バックエンドイメージのWizスキャン
+cd ../..
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --mount type=bind,src="${PWD}",dst=/scan \
+  wizcli:latest docker scan \
+  --image dev-taskflow-backend:latest \
+  --tag "component=backend" \
+  --tag "environment=dev" \
+  --dockerfile /scan/taskflow-app/backend/Dockerfile
+
+# フロントエンドイメージのWizスキャン
+docker run --rm \
+  -e WIZ_CLIENT_ID="$WIZ_CLIENT_ID" \
+  -e WIZ_CLIENT_SECRET="$WIZ_CLIENT_SECRET" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --mount type=bind,src="${PWD}",dst=/scan \
+  wizcli:latest docker scan \
+  --image dev-taskflow-frontend:latest \
+  --tag "component=frontend" \
+  --tag "environment=dev" \
+  --dockerfile /scan/taskflow-app/frontend/Dockerfile
+```
+
+### 6. AWS ECRへのプッシュとECSデプロイ（Phase 2）
+
+スキャン完了後、イメージをECRにプッシュしてECSにデプロイします：
+
+```bash
+# 環境変数の設定
+export AWS_REGION=us-east-1
+export AWS_ACCOUNT_ID=066338625871
+export ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+# ECRログイン
+aws ecr get-login-password --region ${AWS_REGION} | \
+  docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+# バックエンドイメージのタグ付けとプッシュ
+docker tag dev-taskflow-backend:latest \
+  ${ECR_REGISTRY}/dev-taskflow-backend:latest
+docker tag dev-taskflow-backend:latest \
+  ${ECR_REGISTRY}/dev-taskflow-backend:$(git rev-parse --short HEAD)
+
+docker push ${ECR_REGISTRY}/dev-taskflow-backend:latest
+docker push ${ECR_REGISTRY}/dev-taskflow-backend:$(git rev-parse --short HEAD)
+
+# フロントエンドイメージのタグ付けとプッシュ
+docker tag dev-taskflow-frontend:latest \
+  ${ECR_REGISTRY}/dev-taskflow-frontend:latest
+docker tag dev-taskflow-frontend:latest \
+  ${ECR_REGISTRY}/dev-taskflow-frontend:$(git rev-parse --short HEAD)
+
+docker push ${ECR_REGISTRY}/dev-taskflow-frontend:latest
+docker push ${ECR_REGISTRY}/dev-taskflow-frontend:$(git rev-parse --short HEAD)
+
+# ECSサービスの更新（新しいイメージでデプロイ）
+aws ecs update-service \
+  --cluster dev-taskflow-cluster \
+  --service dev-taskflow-backend-service \
+  --force-new-deployment \
+  --region ${AWS_REGION}
+
+aws ecs update-service \
+  --cluster dev-taskflow-cluster \
+  --service dev-taskflow-frontend-service \
+  --force-new-deployment \
+  --region ${AWS_REGION}
+
+# デプロイ状況の確認
+aws ecs describe-services \
+  --cluster dev-taskflow-cluster \
+  --services dev-taskflow-backend-service dev-taskflow-frontend-service \
+  --region ${AWS_REGION}
+
+# ALB経由でアプリケーションにアクセス
+echo "アプリケーションURL: http://dev-taskflow-alb-550446343.us-east-1.elb.amazonaws.com"
 ```
 
 ---
@@ -777,6 +1017,13 @@ WizCodeVerification/
 │       ├── S10-incident-response.md
 │       └── S11-aws-inspector-comparison.md
 │
+├── .github/workflows/                  # GitHub Actions CI/CD（リポジトリルート）
+│   ├── S03-wiz-full-scan.yml           # 全スキャンワークフロー
+│   ├── S04-wiz-iac-scan.yml            # IaCスキャン
+│   ├── S05-wiz-secret-scan.yml         # シークレットスキャン
+│   ├── S06-sbom-generation.yml         # SBOM生成
+│   └── S07-container-build.yml         # コンテナビルド＆ECSデプロイ
+│
 ├── scripts/                            # 検証用スクリプト
 │   ├── validate-env.ps1                # 環境変数検証（PowerShell）
 │   ├── validate-env.sh                 # 環境変数検証（Bash）
@@ -784,12 +1031,7 @@ WizCodeVerification/
 │   └── run-wiz-scan.sh                 # Wizスキャン実行（Bash）
 │
 ├── taskflow-app/                       # TaskFlowアプリケーション
-│   ├── .github/workflows/              # GitHub Actions CI/CD
-│   │   ├── S03-wiz-full-scan.yml       # 全スキャンワークフロー
-│   │   ├── S05-wiz-secret-scan.yml     # シークレットスキャン
-│   │   ├── S06-sbom-generation.yml     # SBOM生成
-│   │   └── S07-container-build.yml     # コンテナビルド
-│   │
+│
 │   ├── backend/                        # バックエンド（Node.js/Express）
 │   │   ├── src/                        # ソースコード
 │   │   ├── .env.example                # 環境変数サンプル
@@ -843,16 +1085,16 @@ WizCodeVerification/
 
 ### 主要なディレクトリの説明
 
-| ディレクトリ                        | 説明                               | 使用 Phase |
-| ----------------------------------- | ---------------------------------- | ---------- |
-| **docs/**                           | すべてのドキュメント               | 全 Phase   |
-| **taskflow-app/backend/**           | Node.js/Express バックエンドアプリ | 全 Phase   |
-| **taskflow-app/frontend/**          | Next.js/React フロントエンドアプリ | 全 Phase   |
-| **taskflow-app/.github/workflows/** | GitHub Actions CI/CD パイプライン  | Phase 1, 2 |
-| **taskflow-app/terraform/**         | AWS インフラ定義（IaC）            | Phase 2, 3 |
-| **taskflow-app/k8s/**               | Kubernetes マニフェスト（参考用）  | Phase 3    |
-| **scripts/**                        | 検証用の便利スクリプト             | 全 Phase   |
-| **evidence/**                       | 検証エビデンス保存先               | 全 Phase   |
+| ディレクトリ                | 説明                                       | 使用 Phase |
+| --------------------------- | ------------------------------------------ | ---------- |
+| **docs/**                   | すべてのドキュメント                       | 全 Phase   |
+| **taskflow-app/backend/**   | Node.js/Express バックエンドアプリ         | 全 Phase   |
+| **taskflow-app/frontend/**  | Next.js/React フロントエンドアプリ         | 全 Phase   |
+| **.github/workflows/**      | GitHub Actions CI/CD パイプライン（ルート） | Phase 1, 2 |
+| **taskflow-app/terraform/** | AWS インフラ定義（IaC）                    | Phase 2, 3 |
+| **taskflow-app/k8s/**       | Kubernetes マニフェスト（参考用）          | Phase 3    |
+| **scripts/**                | 検証用の便利スクリプト                     | 全 Phase   |
+| **evidence/**               | 検証エビデンス保存先                       | 全 Phase   |
 
 ---
 

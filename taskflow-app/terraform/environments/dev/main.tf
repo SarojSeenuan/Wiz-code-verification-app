@@ -26,9 +26,9 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Environment = "dev"
-      Project     = "TaskFlow"
-      ManagedBy   = "Terraform"
+      Environment     = "dev"
+      Project         = "TaskFlow"
+      ManagedBy       = "Terraform"
       WizVerification = "true"
     }
   }
@@ -47,10 +47,10 @@ locals {
 module "networking" {
   source = "../../modules/networking"
 
-  environment        = local.environment
-  aws_region         = var.aws_region
-  vpc_cidr           = var.vpc_cidr
-  availability_zones = var.availability_zones
+  environment          = local.environment
+  aws_region           = var.aws_region
+  vpc_cidr             = var.vpc_cidr
+  availability_zones   = var.availability_zones
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
   enable_nat_gateway   = var.enable_nat_gateway
@@ -63,12 +63,12 @@ module "networking" {
 module "ecr" {
   source = "../../modules/ecr"
 
-  environment              = local.environment
-  image_tag_mutability     = "MUTABLE"
-  scan_on_push             = true
-  encryption_type          = "AES256"
+  environment                   = local.environment
+  image_tag_mutability          = "MUTABLE"
+  scan_on_push                  = true
+  encryption_type               = "AES256"
   untagged_image_retention_days = 7
-  max_image_count          = 30
+  max_image_count               = 30
 
   common_tags = local.common_tags
 }
@@ -77,32 +77,32 @@ module "ecr" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment         = local.environment
-  private_subnet_ids  = module.networking.private_subnet_ids
-  security_group_id   = module.networking.rds_security_group_id
+  environment        = local.environment
+  private_subnet_ids = module.networking.private_subnet_ids
+  security_group_id  = module.networking.rds_security_group_id
 
-  engine_version      = "15.14"
-  instance_class      = "db.t3.micro"
-  allocated_storage   = 20
+  engine_version        = "15.14"
+  instance_class        = "db.t3.micro"
+  allocated_storage     = 20
   max_allocated_storage = 100
-  storage_encrypted   = true
+  storage_encrypted     = true
 
-  database_name       = var.database_name
-  master_username     = var.database_username
-  master_password     = var.database_password
+  database_name   = var.database_name
+  master_username = var.database_username
+  master_password = var.database_password
 
-  multi_az            = false
-  publicly_accessible = false
+  multi_az                = false
+  publicly_accessible     = false
   backup_retention_period = 7
 
-  deletion_protection   = false
-  skip_final_snapshot   = true
+  deletion_protection = false
+  skip_final_snapshot = true
 
-   # Performance Insightsは無効化
-  performance_insights_enabled = false
-  performance_insights_kms_key_id = null
+  # Performance Insightsは無効化
+  performance_insights_enabled          = false
+  performance_insights_kms_key_id       = null
   performance_insights_retention_period = null
-  enable_cloudwatch_alarms     = true
+  enable_cloudwatch_alarms              = true
 
   common_tags = local.common_tags
 
