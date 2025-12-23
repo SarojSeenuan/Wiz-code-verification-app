@@ -58,7 +58,7 @@ services:
       DATABASE_PASSWORD: kkenyx1616
       JWT_SECRET: hardcoded-jwt-secret-key
       AWS_ACCESS_KEY_ID: AKIAQ64QXDFHRX6T43NW
-      AWS_SECRET_ACCESS_KEY: xTSEy28OHKUtkdu13fbZT1BapE1GRA3AowxtVRm2
+      AWS_SECRET_ACCESS_KEY: ---REDACTED---
       AWS_REGION: us-east-1
       # 【脆弱性】デバッグモードを有効化
       DEBUG: "*"
