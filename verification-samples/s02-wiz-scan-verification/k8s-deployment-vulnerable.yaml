@@ -1,0 +1,151 @@
+# S02検証用: 意図的にセキュリティ問題を含むKubernetesマニフェスト
+# WizCode自動スキャン機能検証用
+# 本番環境では絶対に使用しないでください
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: production
+  labels:
+    app: payment-api
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-api
+  template:
+    metadata:
+      labels:
+        app: payment-api
+        version: v1.2.0
+    spec:
+      containers:
+      - name: payment-api
+        # 【脆弱性1】古いnginxバージョン（複数のCVEを含む）
+        image: nginx:1.14.0
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        # 【脆弱性2】ハードコードされたデータベース認証情報
+        - name: DB_HOST
+          value: "prod-payment-db.internal.aws.com"
+        - name: DB_USER
+          value: "admin"
+        - name: DB_PASSWORD
+          value: "P@ssw0rd123!ProductionDB"
+        - name: DB_NAME
+          value: "payment_production"
+        # 【脆弱性3】ハードコードされたAWS認証情報
+        - name: AWS_ACCESS_KEY_ID
+          value: "AKIAIOSFODNN7EXAMPLEKEY"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLESECRET"
+        - name: AWS_REGION
+          value: "us-east-1"
+        # 【脆弱性4】ハードコードされたStripe APIキー
+        - name: STRIPE_SECRET_KEY
+          value: "sk_live_51234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789AB"
+        - name: STRIPE_PUBLISHABLE_KEY
+          value: "pk_live_51234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789AB"
+        # 【脆弱性5】ハードコードされたJWTシークレット
+        - name: JWT_SECRET
+          value: "super-secret-jwt-key-that-should-never-be-hardcoded-in-production"
+        - name: JWT_EXPIRATION
+          value: "7d"
+        # 【脆弱性6】ハードコードされたSendGrid APIキー
+        - name: SENDGRID_API_KEY
+          value: "SG.1234567890abcdefghijklmnopqrstuvwxyz.ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmn"
+        # 【脆弱性7】ハードコードされたSlack Webhook URL
+        - name: SLACK_WEBHOOK_URL
+          value: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
+        securityContext:
+          # 【脆弱性8】特権コンテナモード有効化
+          privileged: true
+          # 【脆弱性9】rootユーザーとして実行（UID 0）
+          runAsUser: 0
+          runAsNonRoot: false
+          # 【脆弱性10】権限昇格を許可
+          allowPrivilegeEscalation: true
+          # 【脆弱性11】書き込み可能なルートファイルシステム
+          readOnlyRootFilesystem: false
+          # 【脆弱性12】すべてのケーパビリティを追加
+          capabilities:
+            add:
+              - ALL
+        resources:
+          # 【脆弱性13】リソース制限が緩すぎる
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        # 【脆弱性14】ホストパスマウント
+        - name: host-root
+          mountPath: /host
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+      volumes:
+      # 【脆弱性15】ホストルートディレクトリをマウント
+      - name: host-root
+        hostPath:
+          path: /
+          type: Directory
+      # 【脆弱性16】Dockerソケットをマウント
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      # 【脆弱性17】ホストネットワークモード有効化
+      hostNetwork: true
+      # 【脆弱性18】ホストPIDモード有効化
+      hostPID: true
+      # 【脆弱性19】ホストIPCモード有効化
+      hostIPC: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-api-service
+  namespace: production
+spec:
+  # 【脆弱性20】LoadBalancer（インターネット公開）
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  # 【脆弱性21】HTTPSなし
+  selector:
+    app: payment-api
+  # 【脆弱性22】送信元IP制限なし
+  externalTrafficPolicy: Cluster
+---
+# 【脆弱性23】ネットワークポリシーなし
+# productionネームスペースにNetworkPolicyが定義されていない
+# すべてのPodが自由に通信可能
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-api-config
+  namespace: production
+data:
+  # 【脆弱性24】設定ファイル内のシークレット
+  database.conf: |
+    host=prod-payment-db.internal.aws.com
+    port=5432
+    username=admin
+    password=P@ssw0rd123!ProductionDB
+    sslmode=disable
+
+  # 【脆弱性25】APIキーの平文保存
+  external-apis.conf: |
+    stripe_key=sk_live_51234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789AB
+    sendgrid_key=SG.1234567890abcdefghijklmnopqrstuvwxyz.ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmn
+    slack_webhook=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
