@@ -1,0 +1,92 @@
+# S02検証用: 意図的にセキュリティ問題を含むDockerfile
+# WizCode自動スキャン機能検証用
+# 本番環境では絶対に使用しないでください
+
+# 【脆弱性1】古いUbuntuベースイメージ（EOL）
+FROM ubuntu:18.04
+
+# 【脆弱性2】rootユーザーとして実行
+USER root
+
+# 【脆弱性3】ハードコードされたシークレット環境変数
+ENV DB_PASSWORD="ProductionDB_P@ssw0rd_2024" \
+    DB_HOST="prod-payment-db.internal.aws.com" \
+    DB_USER="postgres_admin" \
+    DB_PORT="5432"
+
+# 【脆弱性4】AWSアクセスキーのハードコード
+ENV AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLEKEY123" \
+    AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLESECRET456" \
+    AWS_DEFAULT_REGION="us-east-1"
+
+# 【脆弱性5】Stripe APIキーのハードコード
+ENV STRIPE_SECRET_KEY="sk_live_51HqYZ2ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCD" \
+    STRIPE_PUBLISHABLE_KEY="pk_live_51HqYZ2ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCD"
+
+# 【脆弱性6】JWTシークレットのハードコード
+ENV JWT_SECRET="my-ultra-secret-jwt-key-for-production-2024" \
+    JWT_ALGORITHM="HS256" \
+    JWT_EXPIRATION="30d"
+
+# 【脆弱性7】SendGrid APIキーのハードコード
+ENV SENDGRID_API_KEY="SG.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn.1234567890ABCDEFGHIJKLMNOPQRST"
+
+# 【脆弱性8】GitHub Personal Access Tokenのハードコード
+ENV GITHUB_TOKEN="ghp_1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop"
+
+# 【脆弱性9】Slack Webhook URLのハードコード
+ENV SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T1234ABCD/B5678EFGH/XXXXXXXXXXXXXXXXXXX12345"
+
+# 【脆弱性10】apt-getでパッケージ更新なし（古い脆弱性パッケージを使用）
+RUN apt-get update && \
+    # 【脆弱性11】aptキャッシュクリアなし（イメージサイズ増大）
+    apt-get install -y \
+    curl \
+    wget \
+    # 【脆弱性12】不要なネットワークツールをインストール
+    net-tools \
+    netcat \
+    nmap \
+    telnet \
+    # 【脆弱性13】SSHサーバーをインストール（コンテナに不要）
+    openssh-server \
+    # 【脆弱性14】古いPythonバージョン
+    python3.6 \
+    python3-pip
+
+# 【脆弱性15】SSHサーバーを起動設定（コンテナに不適切）
+RUN mkdir /var/run/sshd && \
+    # 【脆弱性16】ハードコードされたSSHパスワード
+    echo 'root:P@ssw0rd123!' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# 【脆弱性17】機密ファイルをイメージに含める
+COPY .env.production /app/.env
+COPY credentials.json /app/config/credentials.json
+COPY private_key.pem /app/keys/private_key.pem
+
+WORKDIR /app
+
+# 【脆弱性18】古いnpm/Node.jsバージョンをインストール
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+    apt-get install -y nodejs
+
+# 【脆弱性19】package.jsonに古い脆弱なパッケージを含める
+COPY package.json /app/
+RUN npm install --production && \
+    # 【脆弱性20】npm auditを無視
+    npm audit || true
+
+# 【脆弱性21】アプリケーションファイルをコピー
+COPY . /app/
+
+# 【脆弱性22】ファイルパーミッションが緩い（777）
+RUN chmod -R 777 /app
+
+# 【脆弱性23】ポート公開が多すぎる
+EXPOSE 22 80 443 3000 3001 5432 6379 8080 9090
+
+# 【脆弱性24】ヘルスチェックなし
+
+# 【脆弱性25】rootユーザーのまま実行（USER指定なし）
+CMD ["/usr/sbin/sshd", "-D"]

@@ -1,0 +1,169 @@
+# ==========================================
+# 1. Secret: 機密情報の分離
+# ==========================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: payment-api-secrets
+  namespace: production
+type: Opaque
+stringData:
+  # 【修正】コードに直書きされていたパスワードやAPIキーをすべてここへ移動
+  # 注: 本番環境ではSealedSecretsやExternal Secrets Operator等の利用がさらに推奨されます
+  DB_PASSWORD: "P@ssw0rd123!ProductionDB"
+  AWS_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLEKEY"
+  AWS_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLESECRET"
+  STRIPE_SECRET_KEY: "sk_live_51234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ..."
+  STRIPE_PUBLISHABLE_KEY: "pk_live_51234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ..."
+  JWT_SECRET: "super-secret-jwt-key-that-should-never-be-hardcoded..."
+  SENDGRID_API_KEY: "SG.1234567890abcdefghijklmnopqrstuvwxyz..."
+  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/T00000000/..."
+
+---
+# ==========================================
+# 2. ConfigMap: 環境依存の設定（機密情報なし）
+# ==========================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-api-config
+  namespace: production
+data:
+  # 【修正】機密情報を削除し、安全な設定値のみを残しました
+  database.conf: |
+    host=prod-payment-db.internal.aws.com
+    port=5432
+    username=admin
+    sslmode=require
+  
+  # 【修正】APIキーなどが平文で書かれていたファイルを削除・修正
+  external-apis.conf: |
+    # API Keys are injected via Environment Variables from Secrets
+    retry_count=3
+    timeout_seconds=30
+
+---
+# ==========================================
+# 3. Deployment: アプリケーション本体
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: production
+  labels:
+    app: payment-api
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-api
+  template:
+    metadata:
+      labels:
+        app: payment-api
+        version: v1.2.1
+    spec:
+      containers:
+      - name: payment-api
+        # 【修正】既知の脆弱性が修正された新しいバージョンを指定
+        image: nginx:1.25.3
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        # --- 環境変数の設定 (Secretから読み込み) ---
+        - name: DB_HOST
+          value: "prod-payment-db.internal.aws.com"
+        - name: DB_USER
+          value: "admin"
+        # 【修正】Secretから値を安全に注入
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: DB_PASSWORD
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        # ... (他の環境変数も同様にSecretから読み込む設定とします) ...
+
+        # --- セキュリティコンテキスト (最重要) ---
+        securityContext:
+          # 【修正】特権モードを無効化
+          privileged: false
+          # 【修正】rootユーザー(UID 0)での実行を禁止
+          runAsUser: 1001
+          runAsGroup: 1001
+          runAsNonRoot: true
+          # 【修正】権限昇格を禁止
+          allowPrivilegeEscalation: false
+          # 【修正】ルートファイルシステムを読み取り専用に設定
+          readOnlyRootFilesystem: true
+          # 【修正】不要なLinuxケーパビリティを全削除
+          capabilities:
+            drop:
+              - ALL
+        
+        # --- リソース制限 ---
+        resources:
+          # 【修正】リソース制限を厳格化し、DoS攻撃等によるクラスタ全体への影響を防ぐ
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+
+        # --- ボリュームマウント（コンテナ内の設定） ---
+        volumeMounts:
+        # 【解決】ここにあった /host や /var/run/docker.sock のマウント設定を削除しました。
+        # 代わりに、一時ファイル書き込み用として安全な領域だけをマウントしています。
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: var-run-volume
+          mountPath: /var/run
+
+      # --- ボリューム（ストレージの実体定義） ---
+      volumes:
+      # 【解決】ここにあった hostPath（ホストのパス）の設定を全て削除しました。
+      # 代わりに emptyDir（コンテナ専用の空っぽの箱）を使っています。
+      - name: tmp-volume
+        emptyDir: {}  # ← これならホストのファイルは見えません
+      - name: var-run-volume
+        emptyDir: {}
+      
+      # --- ホスト設定 ---
+      # 【修正】ホストネットワークやPIDの共有を無効化（デフォルトがfalseだが明示的に記述）
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+
+---
+# ==========================================
+# 4. Service: ネットワーク公開設定
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-api-service
+  namespace: production
+spec:
+  # 【修正】LoadBalancer（インターネット公開）からClusterIP（内部専用）に変更
+  # 外部公開が必要な場合はIngressコントローラーを経由させるのが鉄則
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: payment-api

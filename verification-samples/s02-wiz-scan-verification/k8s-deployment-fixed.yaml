@@ -1,0 +1,290 @@
+# S02検証用: セキュリティ問題を修正したKubernetesマニフェスト
+# WizCode自動スキャン機能検証用（After修正）
+
+# ✅ 修正1: Kubernetes Secretsでシークレットを管理
+apiVersion: v1
+kind: Secret
+metadata:
+  name: payment-api-secrets
+  namespace: production
+type: Opaque
+data:
+  # 注意: 本番環境では、Secretsも外部シークレット管理ツールで管理すべき
+  # AWS Secrets Manager、HashiCorp Vault、Azure Key Vault等を使用
+  db-password: UHJvZHVjdGlvbkRCX1BAc3N3MHJkXzIwMjQh  # Base64エンコード（デモ用）
+  stripe-secret-key: c2tfbGl2ZV81MUhxWVoyQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODlBQkNE
+  jwt-secret: bXktdWx0cmEtc2VjcmV0LWp3dC1rZXktZm9yLXByb2R1Y3Rpb24tMjAyNA==
+  sendgrid-api-key: U0cuQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbi4xMjM0NTY3ODkwQUJDREVGR0hJSktMTU5PUFFSU1Q=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: production
+  labels:
+    app: payment-api
+    environment: production
+    version: v1.2.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-api
+  template:
+    metadata:
+      labels:
+        app: payment-api
+        version: v1.2.0
+    spec:
+      # ✅ 修正2: ServiceAccountを使用
+      serviceAccountName: payment-api-sa
+      # ✅ 修正3: Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: payment-api
+        # ✅ 修正4: 最新の安定版nginx（脆弱性修正済み）
+        image: nginx:1.25.3-alpine
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+          name: http
+        env:
+        # ✅ 修正5: シークレット以外の設定のみ環境変数で定義
+        - name: DB_HOST
+          value: "prod-payment-db.internal.aws.com"
+        - name: DB_USER
+          value: "payment_app_user"  # 管理者ではなく専用ユーザー
+        - name: DB_NAME
+          value: "payment_production"
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: JWT_EXPIRATION
+          value: "7d"
+        # ✅ 修正6: Kubernetes Secretsから読み取る
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: db-password
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: stripe-secret-key
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: jwt-secret
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-api-secrets
+              key: sendgrid-api-key
+        # ✅ 修正7: Container-level security context（強化）
+        securityContext:
+          privileged: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        # ✅ 修正8: 適切なリソース制限
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        # ✅ 修正9: ヘルスチェック追加
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # ✅ 修正10: 読み取り専用のルートファイルシステム用の一時ボリューム
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: run
+          mountPath: /var/run
+      volumes:
+      # ✅ 修正11: emptyDirボリューム（ホストパスマウント削除）
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
+      # ✅ 修正12: ホストネットワーク/PID/IPC無効化
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+---
+# ✅ 修正13: ClusterIP Service（内部アクセスのみ）
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-api-service
+  namespace: production
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: payment-api
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+---
+# ✅ 修正14: Ingressで外部アクセスを制御（TLS付き）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: payment-api-ingress
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # ✅ 修正15: IP制限（必要に応じて）
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12"
+    # ✅ 修正16: レート制限
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    # ✅ 修正17: セキュリティヘッダー
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+spec:
+  tls:
+  - hosts:
+    - payment-api.example.com
+    secretName: payment-api-tls
+  rules:
+  - host: payment-api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: payment-api-service
+            port:
+              number: 80
+---
+# ✅ 修正18: NetworkPolicyで通信を制限
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-api-network-policy
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Ingressからのトラフィックのみ許可
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # データベースへのトラフィックのみ許可
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # DNS解決を許可
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# ✅ 修正19: ConfigMap（シークレット以外の設定）
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-api-config
+  namespace: production
+data:
+  database.conf: |
+    host=prod-payment-db.internal.aws.com
+    port=5432
+    sslmode=require
+    connect_timeout=30
+    application_name=payment-api
+
+  logging.conf: |
+    level=info
+    format=json
+    output=stdout
+---
+# ✅ 修正20: ServiceAccountとRBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-api-sa
+  namespace: production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: payment-api-role
+  namespace: production
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  resourceNames: ["payment-api-config", "payment-api-secrets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payment-api-rolebinding
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: payment-api-sa
+  namespace: production
+roleRef:
+  kind: Role
+  name: payment-api-role
+  apiGroup: rbac.authorization.k8s.io
